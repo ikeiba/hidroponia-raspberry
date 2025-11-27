@@ -1,3 +1,5 @@
+#! DIGITAL // 3.3V
+
 import time
 import threading
 import queue

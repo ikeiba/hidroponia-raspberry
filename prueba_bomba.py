@@ -1,3 +1,5 @@
+#! DIGITAL // 5V
+
 from gpiozero import OutputDevice
 from time import sleep
 

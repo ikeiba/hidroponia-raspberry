@@ -1,3 +1,5 @@
+#! DIGITAL // 5V
+
 from gpiozero import Servo
 from time import sleep
 from gpiozero.pins.pigpio import PiGPIOFactory

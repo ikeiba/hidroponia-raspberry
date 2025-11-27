@@ -8,3 +8,4 @@ Sensores:
 - Servomotor (SI)
 - Nivel del agua (NO)
 
+Comando para conectarse a raspberry: ssh pi@ip_address

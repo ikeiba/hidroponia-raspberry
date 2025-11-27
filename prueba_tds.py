@@ -1,0 +1,1 @@
+#! ANALOGICO // 5V
