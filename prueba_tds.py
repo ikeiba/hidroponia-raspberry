@@ -1,7 +1,6 @@
 #! ANALOGICO // 5V
 import time
 import board
-import busio
 import threading
 import queue
 
