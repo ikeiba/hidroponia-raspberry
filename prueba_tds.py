@@ -7,7 +7,8 @@ import board
 import busio  # <- importante con Blinka
 
 # Librerías específicas del hardware
-import adafruit_ads1x15.ads1115 as ADS
+from adafruit_ads1x15.ads1115 import ADS1115
+from adafruit_ads1x15.ads1x15 import ADS1x15  # para los P0, P1, etc.
 from adafruit_ads1x15.analog_in import AnalogIn
 from w1thermsensor import W1ThermSensor
 
