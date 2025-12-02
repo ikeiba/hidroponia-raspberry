@@ -6,8 +6,8 @@ import board
 import busio  # <- importante con Blinka
 
 # Librerías específicas del hardware
-from adafruit_ads1x15.ads1115 import ADS1115
-from adafruit_ads1x15.ads1x15 import ADS1x15
+import adafruit_ads1x15.ads1115 as ADS1115_mod
+import adafruit_ads1x15.ads1x15 as ADS_CFG
 from adafruit_ads1x15.analog_in import AnalogIn
 from w1thermsensor import W1ThermSensor
 
@@ -22,13 +22,13 @@ def leer_sensores_agua(out_queue):
         # 1. Configurar I2C y ADS1115
         # En Raspberry Pi: SCL = GPIO3 (pin 5), SDA = GPIO2 (pin 3)
         i2c = busio.I2C(board.SCL, board.SDA)
-        ads = ADS1115(i2c)   # <- aquí ANTES ponías ADS.ADS1115(i2c)
+        ads = ADS1115_mod.ADS1115(i2c)
 
         # Ganancia: rango ±4.096 V
         ads.gain = 1
 
         # Canal analógico en A0
-        canal_tds = AnalogIn(ads, ADS1x15.P0)  # <- aquí ANTES ponías ADS.P0
+        canal_tds = AnalogIn(ads, ADS_CFG.Pin.P0)
 
         # 2. Configurar Sensor de Temperatura
         sensor_temp = W1ThermSensor()
