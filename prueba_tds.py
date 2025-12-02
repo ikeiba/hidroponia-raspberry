@@ -28,8 +28,7 @@ def leer_sensores_agua(out_queue):
         ads.gain = 1
 
         # Canal analógico en A0
-        canal_tds = AnalogIn(ads, ADS_CFG.Pin.P0)
-
+        canal_tds = AnalogIn(ads, 0)  # canal A0 del ADS1115
         # 2. Configurar Sensor de Temperatura
         sensor_temp = W1ThermSensor()
 
