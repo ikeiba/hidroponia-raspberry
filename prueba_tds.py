@@ -9,7 +9,6 @@ import busio  # <- importante con Blinka
 import adafruit_ads1x15.ads1115 as ADS1115_mod
 import adafruit_ads1x15.ads1x15 as ADS_CFG
 from adafruit_ads1x15.analog_in import AnalogIn
-from w1thermsensor import W1ThermSensor
 
 # --- CONFIGURACIÓN ---
 data_queue = queue.Queue()
@@ -30,14 +29,13 @@ def leer_sensores_agua(out_queue):
         # Canal analógico en A0
         canal_tds = AnalogIn(ads, 0)  # canal A0 del ADS1115
         # 2. Configurar Sensor de Temperatura
-        sensor_temp = W1ThermSensor()
 
         print("Hardware inicializado: ADS1115 y DS18B20 encontrados.")
 
         while True:
             # --- Lectura de Temperatura ---
             try:
-                temp_c = sensor_temp.get_temperature()
+                temp_c = 25.0
             except Exception:
                 temp_c = 25.0  # Valor de seguridad
 
