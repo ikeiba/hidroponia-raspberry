@@ -22,7 +22,7 @@ SERVO_PIN     = 17   # Servo que "echa sal"
 # =======================
 # PARÁMETROS DEL SISTEMA
 # =======================
-TDS_MIN          = 500.0      # ppm mínimos deseados (ajusta)
+TDS_MIN          = 100.0      # ppm mínimos deseados (ajusta)
 TEMP_LOW         = 15.0       # ºC → por debajo, LED temp ON
 TEMP_HIGH        = 25.0       # ºC → por encima, LED temp ON
 TEMP_EMERGENCY   = 30.0       # ºC → emergencia
