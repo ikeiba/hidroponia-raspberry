@@ -34,4 +34,4 @@ while True:
 
         print("Volver al inicio: 0° (izquierda)")
         servo.min()   # siempre vuelve al mismo valor (-1)
-        sleep(0.5)
+        sleep(0.3)
