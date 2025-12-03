@@ -24,7 +24,7 @@ def set_angle_from_min(angle_deg):
 # Ir al inicio (0º, tope izquierda) al arrancar
 print("Ir a inicio: 0° (izquierda)")
 servo.min()
-sleep(1)
+sleep(3)
 
 while True:
     for angle in range(30, MAX_ANGLE + 1, 30):  # 30, 60, 90, 120, 150, 180
