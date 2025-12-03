@@ -4,9 +4,6 @@ from time import sleep
 servo = Servo(17, min_pulse_width=0.0005, max_pulse_width=0.0024)
 
 while True:
-    print("Centro")
-    servo.mid()
-    sleep(1)
 
     print("Izquierda")
     servo.min()
