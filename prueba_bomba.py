@@ -4,7 +4,7 @@ from gpiozero import OutputDevice
 from time import sleep
 
 # Pin GPIO donde está conectado el relé
-bomba = OutputDevice(27, active_high=False)  
+bomba = OutputDevice(27, active_high=False, initial_value=False)
 # active_high=False se usa si el relé se activa con 0 lógico (muy común)
 
 print("Prueba de la bomba...")
