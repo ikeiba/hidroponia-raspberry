@@ -1,5 +1,6 @@
 from gpiozero import LED
 from flask import Flask, render_template
+from hardware import sensores, actuadores, controlador
 
 LED_PIN = 17
 led = LED(LED_PIN)
