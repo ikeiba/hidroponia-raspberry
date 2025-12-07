@@ -3,6 +3,7 @@ import os
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from hardware import controlador
 from data import influx_reader  # <--- IMPORTAR EL NUEVO MODULO
+from data import logger_web as log_buffer # Importamos la lista de memoria
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -84,6 +85,18 @@ def config():
 
     cfg_actual = controlador.get_config()
     return render_template("config.html", **cfg_actual)
+
+# --- LOGS ---
+@app.route("/logs")
+def ver_logs():
+    """Renderiza la página de consola visual"""
+    return render_template("logs.html")
+
+@app.route("/api/logs")
+def api_logs():
+    """Devuelve la lista de logs en formato JSON"""
+    # Convertimos el deque a lista para que sea serializable
+    return jsonify(list(log_buffer))
 
 
 if __name__ == "__main__":

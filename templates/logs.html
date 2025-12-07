@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Logs del Sistema</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <style>
+        .terminal-window {
+            background-color: #0d1117;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 900px;
+            margin: 0 auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 70vh; /* Altura fija */
+        }
+        .terminal-header {
+            background-color: #161b22;
+            padding: 10px 15px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .terminal-body {
+            padding: 15px;
+            overflow-y: auto; /* Scroll vertical */
+            flex-grow: 1;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            color: #3fb950; /* Verde matrix */
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .log-line {
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 2px;
+        }
+        .log-time { color: #8b949e; margin-right: 10px; }
+        .log-info { color: #58a6ff; }
+        .log-error { color: #f85149; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard__header">
+            <h1>Logs del Sistema</h1>
+            <a href="/" style="color: #60a5fa;">&larr; Volver al Dashboard</a>
+        </header>
+
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <span style="color: #8b949e; font-size: 0.8rem;">root@raspberry-pi:~/hidroponia/logs</span>
+                <span id="status-dot" style="height: 10px; width: 10px; background-color: #22c55e; border-radius: 50%; display: inline-block;"></span>
+            </div>
+            <div class="terminal-body" id="log-container">
+                <div>Cargando logs...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const logContainer = document.getElementById('log-container');
+        let autoScroll = true;
+
+        // Detectar si el usuario sube el scroll para no bajarle de golpe
+        logContainer.addEventListener('scroll', () => {
+            const { scrollTop, scrollHeight, clientHeight } = logContainer;
+            // Si estamos cerca del final, activamos autoscroll
+            autoScroll = (scrollTop + clientHeight >= scrollHeight - 50);
+        });
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const logs = await response.json();
+                
+                // Limpiamos y repintamos
+                logContainer.innerHTML = '';
+                
+                logs.forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'log-line';
+                    
+                    // Colorear un poco según contenido (simple parsing)
+                    if (line.includes('ERROR')) {
+                        div.style.color = '#f85149'; // Rojo
+                    } else if (line.includes('WARN')) {
+                        div.style.color = '#d29922'; // Amarillo
+                    }
+                    
+                    div.innerText = line; // Texto seguro
+                    logContainer.appendChild(div);
+                });
+
+                // Scroll al fondo si el usuario no ha subido
+                if (autoScroll) {
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+                
+                // Parpadeo del led de estado
+                document.getElementById('status-dot').style.opacity = 1;
+                setTimeout(() => document.getElementById('status-dot').style.opacity = 0.5, 500);
+
+            } catch (error) {
+                console.error("Error logs:", error);
+            }
+        }
+
+        // Actualizar cada 2 segundos
+        setInterval(fetchLogs, 2000);
+        fetchLogs();
+    </script>
+</body>
+</html>

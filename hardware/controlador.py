@@ -41,13 +41,14 @@ import time
 from gpiozero import Button
 
 from . import sensores, actuadores
+from data import logger_web as logger  # <--- IMPORTAR EL LOGGER NUEVO
 
 # Intentamos importar el publicador de MQTT
 try:
     from data import mqtt_publicador
 except ImportError:
     mqtt_publicador = None
-    print("[CONTROLADOR] Aviso: No se encontró data.mqtt_publicador")
+    logger.info("[CONTROLADOR] Aviso: No se encontró data.mqtt_publicador")
 
 
 # =========================
@@ -145,7 +146,7 @@ def _callback_boton():
         activo = not estado["sistema_activo"]
         estado["sistema_activo"] = activo
 
-    print(f"[CONTROLADOR] Botón pulsado. Sistema activo: {activo}")
+    logger.info(f"[CONTROLADOR] Botón pulsado. Sistema activo: {activo}")
 
     if activo:
         # Sistema se activa → bomba siempre encendida
@@ -164,7 +165,7 @@ def _hilo_boton():
     Hilo que asocia el callback al botón y se mantiene vivo.
     """
     boton.when_pressed = _callback_boton
-    print("[CONTROLADOR] Hilo del botón iniciado.")
+    logger.info("[CONTROLADOR] Hilo del botón iniciado.")
     while not _stop_event.is_set():
         time.sleep(0.5)
 
@@ -174,7 +175,7 @@ def _hilo_boton():
 # =========================
 
 def _hilo_lectura_sensores():
-    print("[CONTROLADOR] Hilo de lectura de sensores iniciado.")
+    logger.info("[CONTROLADOR] Hilo de lectura de sensores iniciado.")
 
     while not _stop_event.is_set():
         # 1. Leemos la configuración actual para saber cuánto dormir luego
@@ -194,7 +195,7 @@ def _hilo_lectura_sensores():
             _set_estado("tds", tds_ppm)
             _set_estado("nivel_agua", nivel)
 
-            print(f"[CONTROLADOR] Sensores → temp={temp}ºC, TDS={tds_ppm}ppm, nivel={nivel}")
+            logger.info(f"[CONTROLADOR] Sensores → temp={temp}ºC, TDS={tds_ppm}ppm, nivel={nivel}")
 
             if mqtt_publicador is not None:
                 # ... (publicar_telemetria igual que antes) ...
@@ -216,7 +217,7 @@ def _hilo_lectura_sensores():
 
 def _hilo_control_actuadores():
     global _ultima_activacion_servo
-    print("[CONTROLADOR] Hilo de control de actuadores iniciado.")
+    logger.info("[CONTROLADOR] Hilo de control de actuadores iniciado.")
 
     while not _stop_event.is_set():
         with _lock_estado:
@@ -238,7 +239,7 @@ def _hilo_control_actuadores():
             if tds_ppm is not None and tds_ppm < cfg_tds_min:
                 ahora = time.time()
                 if ahora - _ultima_activacion_servo > cfg_servo_cd:
-                    print("[CONTROLADOR] TDS bajo -> Dosificando.")
+                    logger.info("[CONTROLADOR] TDS bajo -> Dosificando.")
                     _ultima_activacion_servo = ahora
                     actuadores.servo_abrir()
                     time.sleep(0.5)
@@ -276,7 +277,7 @@ def iniciar():
       - control de actuadores
       - escritor InfluxDB (si existe)
     """
-    print("[CONTROLADOR] Iniciando controlador...")
+    logger.info("[CONTROLADOR] Iniciando controlador...")
 
     # Estado inicial: sistema apagado y actuadores off
     actuadores.apagar_bomba()
@@ -297,14 +298,14 @@ def iniciar():
     # Hilo actuadores
     threading.Thread(target=_hilo_control_actuadores, daemon=True).start()
 
-    print("[CONTROLADOR] Todos los hilos iniciados.")
+    logger.info("[CONTROLADOR] Todos los hilos iniciados.")
 
 
 def detener():
     """
     Señala a los hilos que deben detenerse y apaga todo.
     """
-    print("[CONTROLADOR] Deteniendo controlador...")
+    logger.info("[CONTROLADOR] Deteniendo controlador...")
     _stop_event.set()
     actuadores.apagar_bomba()
     actuadores.servo_cerrar()
