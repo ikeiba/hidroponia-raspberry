@@ -3,9 +3,9 @@ from datetime import datetime
 
 # --- TUS DATOS ---
 url = "http://localhost:8086"
-token = "TU_TOKEN_LARGO_AQUI"
-org = "nombre_org"
-bucket = "nombre_bucket"
+token = "Aq38n8SaWh7iGjRC8u9Peb0mmkwfxu-TWOqXWBZF0amtG04swNbuUxE6U-XL1CGGWt5sA2hjpQ4dSw_BrEPdAg=="
+org = "proyecto_hidroponia"
+bucket = "hidroponia_db"
 # -----------------
 
 client = InfluxDBClient(url=url, token=token, org=org)
