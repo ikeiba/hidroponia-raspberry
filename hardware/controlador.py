@@ -36,278 +36,279 @@ Este módulo no sabe nada de Flask. Flask solo usará get_estado()
 para mostrar los valores en la web.
 """
 
+# hardware/controlador.py
 import threading
 import time
 from gpiozero import Button
-
 from . import sensores, actuadores
-from data.logger_web import logger  # <--- IMPORTAR EL LOGGER NUEVO
+from data.logger_web import logger 
 
-# Intentamos importar el publicador de MQTT
+# Intentamos importar el publicador de MQTT (opcional)
 try:
     from data import mqtt_publicador
 except ImportError:
     mqtt_publicador = None
-    logger.info("[CONTROLADOR] Aviso: No se encontró data.mqtt_publicador")
-
 
 # =========================
 # CONFIGURACIÓN
 # =========================
+BUTTON_PIN = 22
 
-BUTTON_PIN = 22          # GPIO del botón físico
-
+# Valores por defecto (se pueden cambiar desde la web /config)
 configuracion = {
-    "TEMP_MIN": 10.0,
-    "TEMP_MAX": 30.0,
-    "TDS_MIN": 70,
-    "TDS_ALERT": 400.0,
-    "SERVO_COOLDOWN": 60.0,
-    "TIEMPO_LECTURA": 2.0  # <--- NUEVA VARIABLE
+    "TEMP_MIN": 15.0,       # Por debajo: LED Temp ON
+    "TEMP_MAX": 25.0,       # Por encima: LED Temp ON
+    "TEMP_EMERGENCIA": 30.0,# Por encima: APAGADO TOTAL + BLINK
+    "TDS_MIN": 500,         # Por debajo: LED TDS ON + Servo
+    "SERVO_COOLDOWN": 60.0, # Tiempo de espera del servo (1 minuto)
+    "TIEMPO_LECTURA": 2.5   # Frecuencia de logs en consola
 }
-
 
 # =========================
 # ESTADO GLOBAL
 # =========================
-
 estado = {
-    "sistema_activo": False,
-    "temp": None,          # temperatura ºC
-    "tds": None,           # TDS ppm
-    "nivel_agua": None,    # de momento sin sensor real
-
+    "sistema_activo": False, # Si está leyendo y funcionando
+    "modo_emergencia": False,# Si ha saltado la seguridad por T > 30
+    
+    "temp": 0.0,
+    "tds": 0,
+    
     "bomba_on": False,
-    "led_rojo_on": False,
-    "led_verde_on": False,
-
-    "servo_count": 0,      # nº total de activaciones del servo
+    "led_rojo_on": False,  # Asociado a Temperatura (GPIO 24)
+    "led_verde_on": False, # Asociado a TDS (GPIO 23)
+    "servo_count": 0,
 }
 
-_ultima_activacion_servo = 0.0  # para saber cuándo fue la última vez
-_servo_count = 0               # contador interno
+# Variables internas para temporizadores
+_ultima_activacion_servo = 0.0
+_ultimo_rebote_boton = 0.0
 
 _lock_estado = threading.Lock()
 _stop_event = threading.Event()
 
-boton = Button(BUTTON_PIN, pull_up=True, bounce_time=0.05)
-
-_ultima_activacion_servo = 0.0  # para no machacar el servo
-
+# Configuración del botón físico
+# bounce_time ayuda, pero añadiremos lógica extra para botones "malos"
+boton = Button(BUTTON_PIN, pull_up=True, bounce_time=0.1) 
 
 # =========================
-# ACCESO AL ESTADO
+# GESTIÓN DEL ESTADO
 # =========================
-
-def _set_estado(clave, valor):
-    with _lock_estado:
-        estado[clave] = valor
-
 
 def get_estado():
-    """
-    Devuelve una copia del estado actual (para Flask).
-    """
+    """Devuelve copia del estado para la web"""
     with _lock_estado:
         return dict(estado)
 
-
-# =========================
-# NUEVAS FUNCIONES DE CONFIG
-# =========================
-
 def get_config():
-    """Devuelve la configuración actual."""
-    return dict(configuracion) # Copia de seguridad
+    return dict(configuracion)
 
 def update_config(nueva_conf):
-    """Actualiza los valores de configuración."""
     global configuracion
-    # Actualizamos solo las claves que nos lleguen
     for clave, valor in nueva_conf.items():
         if clave in configuracion:
-            # Intentamos convertir a float/int según el tipo original
-            tipo_orig = type(configuracion[clave])
             try:
-                configuracion[clave] = tipo_orig(valor)
+                tipo = type(configuracion[clave])
+                configuracion[clave] = tipo(valor)
             except ValueError:
-                pass # Si falla la conversión, ignoramos
-
-
-# =========================
-# LÓGICA DEL BOTÓN
-# =========================
-
-def _callback_boton():
-    """
-    Alterna el estado del sistema al pulsar el botón.
-    """
-    with _lock_estado:
-        activo = not estado["sistema_activo"]
-        estado["sistema_activo"] = activo
-
-    logger.info(f"[CONTROLADOR] Botón pulsado. Sistema activo: {activo}")
-
-    if activo:
-        # Sistema se activa → bomba siempre encendida
-        actuadores.encender_bomba()
-        # LEDs se gestionan en el hilo de control
-    else:
-        # Sistema se desactiva → apagamos todo
-        actuadores.apagar_bomba()
-        actuadores.servo_cerrar()
-        actuadores.led_verde_off()
-        actuadores.led_rojo_off()
-
-
-def _hilo_boton():
-    """
-    Hilo que asocia el callback al botón y se mantiene vivo.
-    """
-    boton.when_pressed = _callback_boton
-    logger.info("[CONTROLADOR] Hilo del botón iniciado.")
-    while not _stop_event.is_set():
-        time.sleep(0.5)
-
-
-# =========================
-# HILO: LECTURA DE SENSORES
-# =========================
-
-def _hilo_lectura_sensores():
-    logger.info("[CONTROLADOR] Hilo de lectura de sensores iniciado.")
-
-    while not _stop_event.is_set():
-        # 1. Leemos la configuración actual para saber cuánto dormir luego
-        # Lo hacemos al principio o al final del bucle, da igual
-        tiempo_espera = configuracion["TIEMPO_LECTURA"]
-
-        with _lock_estado:
-            activo = estado["sistema_activo"]
-
-        if activo:
-            # ... (Lectura de sensores y publicación MQTT igual que antes) ...
-            temp = sensores.leer_temperatura()
-            tds_ppm = sensores.leer_tds_ppm()
-            nivel = sensores.leer_nivel_agua()
-
-            _set_estado("temp", temp)
-            _set_estado("tds", tds_ppm)
-            _set_estado("nivel_agua", nivel)
-
-            logger.info(f"[CONTROLADOR] Sensores → temp={temp}ºC, TDS={tds_ppm}ppm, nivel={nivel}")
-
-            if mqtt_publicador is not None:
-                # ... (publicar_telemetria igual que antes) ...
                 pass
 
-        # 2. Usamos la variable dinámica en lugar de la constante
-        time.sleep(tiempo_espera)
-
-
-# =========================
-# HILO: CONTROL DE ACTUADORES
-# =========================
+def _set_emergencia(valor):
+    with _lock_estado:
+        estado["modo_emergencia"] = valor
 
 # =========================
-# ACTUALIZAR HILO DE ACTUADORES
+# LÓGICA DEL BOTÓN (ON/OFF/RESET)
 # =========================
-# Tienes que buscar la función _hilo_control_actuadores y 
-# cambiar las variables constantes por configuracion["CLAVE"]
+def _callback_boton():
+    global _ultimo_rebote_boton
+    ahora = time.time()
+    
+    # 1. Filtro extra de seguridad (0.5s) para botones de mala calidad
+    if ahora - _ultimo_rebote_boton < 0.5:
+        return
+    _ultimo_rebote_boton = ahora
 
-def _hilo_control_actuadores():
+    with _lock_estado:
+        emergencia = estado["modo_emergencia"]
+        activo_actual = estado["sistema_activo"]
+        
+        # CASO 1: Estamos en EMERGENCIA -> El botón sirve de RESET
+        if emergencia:
+            logger.info("[BOTÓN] Reseteando estado de EMERGENCIA. Sistema en espera.")
+            estado["modo_emergencia"] = False
+            estado["sistema_activo"] = False # Se queda apagado esperando nueva orden
+            # Apagamos LEDs de inmediato para quitar el parpadeo
+            actuadores.led_rojo_off()
+            actuadores.led_verde_off()
+            return
+
+        # CASO 2: Funcionamiento normal -> TOGGLE (Encender/Apagar)
+        nuevo_estado = not activo_actual
+        estado["sistema_activo"] = nuevo_estado
+    
+    if nuevo_estado:
+        logger.info("[BOTÓN] Sistema ACTIVADO. Iniciando bomba y sensores...")
+        actuadores.encender_bomba()
+    else:
+        logger.info("[BOTÓN] Sistema PAUSADO. Apagando actuadores.")
+        actuadores.apagar_bomba()
+        actuadores.servo_cerrar()
+        actuadores.led_rojo_off()   # Temp LED Off
+        actuadores.led_verde_off()  # TDS LED Off
+
+def _hilo_boton():
+    boton.when_pressed = _callback_boton
+    while not _stop_event.is_set():
+        time.sleep(0.1)
+
+# =========================
+# HILO DE LÓGICA PRINCIPAL
+# =========================
+# Unificamos sensores y lógica de control para sincronización perfecta
+def _hilo_maestro():
     global _ultima_activacion_servo
-    logger.info("[CONTROLADOR] Hilo de control de actuadores iniciado.")
+    logger.info("[CONTROLADOR] Hilo Maestro iniciado.")
 
     while not _stop_event.is_set():
+        
+        # Leemos configuración dinámica
+        T_LECTURA = configuracion["TIEMPO_LECTURA"]
+        
         with _lock_estado:
             activo = estado["sistema_activo"]
-            temp = estado["temp"]
-            tds_ppm = estado["tds"]
-        
-        # --- USAMOS LA CONFIGURACIÓN DINÁMICA ---
-        cfg_tds_min = configuracion["TDS_MIN"]
-        cfg_servo_cd = configuracion["SERVO_COOLDOWN"]
-        cfg_temp_min = configuracion["TEMP_MIN"]
-        cfg_temp_max = configuracion["TEMP_MAX"]
-        cfg_tds_alert = configuracion["TDS_ALERT"]
+            en_emergencia = estado["modo_emergencia"]
 
-        if activo:
-            actuadores.encender_bomba()
-
-            # Servo
-            if tds_ppm is not None and tds_ppm < cfg_tds_min:
-                ahora = time.time()
-                if ahora - _ultima_activacion_servo > cfg_servo_cd:
-                    logger.info("[CONTROLADOR] TDS bajo -> Dosificando.")
-                    _ultima_activacion_servo = ahora
-                    actuadores.servo_abrir()
-                    time.sleep(0.5)
-                    actuadores.servo_cerrar()
-
-            # LEDs (Alertas)
-            alerta_temp = (temp is not None and (temp < cfg_temp_min or temp > cfg_temp_max))
-            alerta_tds = (tds_ppm is not None and tds_ppm > cfg_tds_alert)
-
-            if alerta_temp or alerta_tds:
-                actuadores.led_rojo_on()
-                actuadores.led_verde_off()
-            else:
-                actuadores.led_rojo_off()
-                actuadores.led_verde_on()
-        else:
-            # ... (Apagado igual que antes) ...
-            actuadores.apagar_bomba()
-            actuadores.servo_cerrar()
-            actuadores.led_verde_off()
+        # -------------------------------------------------
+        # ESTADO A: MODO EMERGENCIA (T > 30)
+        # -------------------------------------------------
+        if en_emergencia:
+            # Requisito: "Todo apagado excepto LEDs parpadeando"
+            actuadores.apagar_bomba() 
+            # Parpadeo: encender, esperar 0.5, apagar, esperar 0.5
+            actuadores.led_rojo_on()
+            actuadores.led_verde_on()
+            time.sleep(0.5)
             actuadores.led_rojo_off()
+            actuadores.led_verde_off()
+            time.sleep(0.5)
+            continue # Vuelve al inicio del while, ignorando el resto
 
-        time.sleep(0.5)
+        # -------------------------------------------------
+        # ESTADO B: SISTEMA INACTIVO (Standby)
+        # -------------------------------------------------
+        if not activo:
+            # Nos aseguramos que todo esté apagado
+            time.sleep(0.5)
+            continue
 
+        # -------------------------------------------------
+        # ESTADO C: SISTEMA ACTIVO (Funcionando)
+        # -------------------------------------------------
+        
+        # 1. Leer Sensores
+        temp = sensores.leer_temperatura()
+        tds = sensores.leer_tds_ppm()
+        
+        # Fallback si hay error de lectura (para que no crash)
+        if temp is None: temp = 25.0 
+        if tds is None: tds = 600
+
+        # Actualizamos estado global para la web
+        with _lock_estado:
+            estado["temp"] = temp
+            estado["tds"] = tds
+            estado["bomba_on"] = True # Forzamos visualización on
+
+        # Imprimir por consola (Requisito: cada 2.5s)
+        logger.info(f"Estado -> Temp: {temp:.1f}ºC | TDS: {tds} ppm")
+
+        # 2. Comprobar EMERGENCIA (T > 30)
+        limit_emergencia = configuracion.get("TEMP_EMERGENCIA", 30.0)
+        if temp >= limit_emergencia:
+            logger.warning(f"!!! EMERGENCIA DETECTADA: {temp}ºC >= {limit_emergencia}ºC !!!")
+            logger.warning("Apagando bomba y sensores. Iniciando parpadeo.")
+            _set_emergencia(True)
+            # El ciclo 'continue' saltará al bloque de emergencia en la siguiente vuelta
+            continue 
+
+        # 3. Lógica de TEMPERATURA (LED GPIO 24 - Rojo)
+        # Requisito: Apagado si 15 < T < 25. Encendido si T < 15 o T > 25
+        t_min = configuracion["TEMP_MIN"]
+        t_max = configuracion["TEMP_MAX"]
+        
+        if temp < t_min or temp > t_max:
+            actuadores.led_rojo_on()
+            with _lock_estado: estado["led_rojo_on"] = True
+        else:
+            actuadores.led_rojo_off()
+            with _lock_estado: estado["led_rojo_on"] = False
+
+        # 4. Lógica de TDS y SERVO (LED GPIO 23 - Verde)
+        limit_tds = configuracion["TDS_MIN"]
+        
+        if tds < limit_tds:
+            # TDS BAJO: Encender LED y evaluar Servo
+            actuadores.led_verde_on()
+            with _lock_estado: estado["led_verde_on"] = True
+            
+            ahora = time.time()
+            cooldown = configuracion["SERVO_COOLDOWN"] # 60 segundos
+            
+            # Requisito: Pausa SOLO afecta al servo
+            if ahora - _ultima_activacion_servo > cooldown:
+                logger.info("[ACCIÓN] TDS Bajo. Activando Servo (Dosificando sal).")
+                
+                actuadores.servo_abrir() # 90 grados
+                time.sleep(1.0)          # Tiempo vertiendo sal
+                actuadores.servo_cerrar()# Vuelta a 0
+                
+                with _lock_estado: 
+                    estado["servo_count"] += 1
+                
+                _ultima_activacion_servo = time.time()
+                logger.info("[ACCIÓN] Servo finalizado. Iniciando espera de 1 min para el servo.")
+            else:
+                # Estamos en tiempo de espera del servo, no hacemos nada
+                # pero el resto del sistema sigue funcionando
+                pass
+
+        else:
+            # TDS CORRECTO: Apagar LED Verde
+            actuadores.led_verde_off()
+            with _lock_estado: estado["led_verde_on"] = False
+
+        # 5. Publicar en MQTT (si existe)
+        if mqtt_publicador:
+            mqtt_publicador.publicar_telemetria({
+                "temp": temp, "tds": tds, "bomba": True
+            })
+
+        # Esperar el tiempo configurado para la siguiente lectura (2.5s)
+        time.sleep(T_LECTURA)
 
 # =========================
 # API PÚBLICA
 # =========================
 
 def iniciar():
-    """
-    Inicia los hilos de:
-      - botón
-      - lectura de sensores
-      - control de actuadores
-      - escritor InfluxDB (si existe)
-    """
-    logger.info("[CONTROLADOR] Iniciando controlador...")
-
-    # Estado inicial: sistema apagado y actuadores off
+    logger.info("[CONTROLADOR] Inicializando sistema...")
+    
+    # Estado inicial seguro
     actuadores.apagar_bomba()
     actuadores.servo_cerrar()
-    actuadores.led_verde_off()
     actuadores.led_rojo_off()
+    actuadores.led_verde_off()
+    
+    if mqtt_publicador: mqtt_publicador.iniciar()
 
-    # Iniciar Influx si existe
-    if mqtt_publicador is not None:
-        mqtt_publicador.iniciar()
-
-    # Hilo botón
-    threading.Thread(target=_hilo_boton, daemon=True).start()
-
-    # Hilo sensores
-    threading.Thread(target=_hilo_lectura_sensores, daemon=True).start()
-
-    # Hilo actuadores
-    threading.Thread(target=_hilo_control_actuadores, daemon=True).start()
-
-    logger.info("[CONTROLADOR] Todos los hilos iniciados.")
-
+    # Lanzar hilos
+    hilo_btn = threading.Thread(target=_hilo_boton, daemon=True)
+    hilo_master = threading.Thread(target=_hilo_maestro, daemon=True)
+    
+    hilo_btn.start()
+    hilo_master.start()
 
 def detener():
-    """
-    Señala a los hilos que deben detenerse y apaga todo.
-    """
-    logger.info("[CONTROLADOR] Deteniendo controlador...")
     _stop_event.set()
     actuadores.apagar_bomba()
-    actuadores.servo_cerrar()
-    actuadores.led_verde_off()
-    actuadores.led_rojo_off()
