@@ -68,13 +68,25 @@
     </script>
 </head>
 <body>
-    <div class="dashboard">
-        <header class="dashboard__header">
-            <h1>Sistema de Hidroponía</h1>
-            <p class="dashboard__subtitle">
-                Estado en tiempo real desde la Raspberry Pi
-            </p>
-        </header>
+    <header class="dashboard__header">
+        <h1>Sistema de Hidroponía</h1>
+        <div style="margin: 15px 0;">
+            <a href="/graficas" style="
+                background-color: #2563eb; 
+                color: white; 
+                padding: 10px 20px; 
+                text-decoration: none; 
+                border-radius: 8px; 
+                font-weight: bold; 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                transition: background 0.3s;">
+                📈 Ver Historial y Gráficas
+            </a>
+        </div>
+        <p class="dashboard__subtitle">
+            Estado en tiempo real desde la Raspberry Pi
+        </p>
+    </header>
 
         <!-- Sección de gauges -->
         <section class="dashboard__section dashboard__section--gauges">
