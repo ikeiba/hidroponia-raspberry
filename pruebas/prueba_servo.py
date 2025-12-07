@@ -1,37 +1,58 @@
-from gpiozero import Servo
+from gpiozero import AngularServo
 from time import sleep
 
-# Servo en GPIO17 (pin físico 11)
-servo = Servo(17, min_pulse_width=0.0005, max_pulse_width=0.0024)
+# Define el pin GPIO. Usamos el pin físico 12, que corresponde a GPIO 18 (BCM).
+# Los valores min_angle y max_angle se establecen por defecto en -90 y 90 grados.
+# Puedes ajustarlos si tu servo tiene un rango diferente.
+servo = AngularServo(18) 
 
-MAX_ANGLE = 180  # servo de 180 grados
+# --- Rutina de prueba ---
 
-def set_angle_from_min(angle_deg):
-    """
-    Mapea un ángulo desde el mínimo (izquierda) hasta el máximo (derecha).
+def mover_servo():
+    print("Moviendo el servo a diferentes ángulos...")
 
-    0º   -> servo.min()  (value = -1)
-    180º -> servo.max()  (value = 1)
-    """
-    # Limitar por seguridad
-    angle_deg = max(0, min(MAX_ANGLE, angle_deg))
+    # 1. Posición central (0 grados)
+    print(" -> 0 grados (Centro)")
+    servo.angle = 0
+    sleep(1)
 
-    # 0º -> -1, 180º -> 1
-    frac = angle_deg / MAX_ANGLE      # 0..1
-    value = -1 + frac * 2             # -1..1
-    servo.value = value
+    # 2. Posición máxima positiva (+90 grados)
+    print(" -> +90 grados (Máximo)")
+    servo.angle = 90
+    sleep(1)
 
-# Ir al inicio (0º, tope izquierda) al arrancar
-print("Ir a inicio: 0° (izquierda)")
-servo.min()
-sleep(3)
+    # 3. Posición central (0 grados)
+    print(" -> 0 grados (Centro)")
+    servo.angle = 0
+    sleep(1)
+    
+    # 4. Posición máxima negativa (-90 grados)
+    print(" -> -90 grados (Mínimo)")
+    servo.angle = -90
+    sleep(1)
 
-while True:
-    for angle in range(30, MAX_ANGLE + 1, 30):  # 30, 60, 90, 120, 150, 180
-        print(f"Giro hasta {angle}° desde la izquierda")
-        set_angle_from_min(angle)
-        sleep(1)
+    # 5. Posición central (0 grados)
+    print(" -> 0 grados (Centro)")
+    servo.angle = 0
+    sleep(1)
 
-        print("Volver al inicio: 0° (izquierda)")
-        servo.min()   # siempre vuelve al mismo valor (-1)
-        sleep(0.3)
+    print("--- Ciclo de oscilación (Wiggle) ---")
+    # Haz que el servo oscile entre los límites
+    for _ in range(5):
+        servo.min()  # Mueve al ángulo mínimo (-90)
+        sleep(0.5)
+        servo.max()  # Mueve al ángulo máximo (+90)
+        sleep(0.5)
+
+    # Detiene el servo en la posición central
+    servo.angle = 0
+    sleep(1)
+    print("Servo detenido en 0 grados.")
+
+# Ejecutar la función
+try:
+    mover_servo()
+except KeyboardInterrupt:
+    print("\nPrograma detenido por el usuario.")
+finally:
+    servo.close() # Libera el pin GPIO
