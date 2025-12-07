@@ -18,7 +18,7 @@ from time import sleep
 # CONFIGURACIÓN DE PINES
 
 # Cambia estos pines según tu montaje real
-SERVO_PIN = 18       # Pin GPIO para el servo (PWM)
+SERVO_PIN = 17       # Pin GPIO para el servo (PWM)
 PUMP_PIN = 27        # Pin GPIO para el relé de la bomba
 LED_VERDE_PIN = 23   # LED 1 (por ejemplo: sistema OK)
 LED_ROJO_PIN = 24    # LED 2 (por ejemplo: alarma / error)
@@ -39,7 +39,7 @@ led_rojo = LED(LED_ROJO_PIN)
 
 # Ajusta estos ángulos a tu montaje físico
 ANGULO_CERRADO = 0
-ANGULO_ABIERTO = 180
+ANGULO_ABIERTO = 90
 
 def mover_servo_angulo(angulo: float):
     """
