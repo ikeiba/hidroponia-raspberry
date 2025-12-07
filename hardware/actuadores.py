@@ -27,7 +27,7 @@ LED_ROJO_PIN = 24    # LED 2 (por ejemplo: alarma / error)
 
 # Servo: AngularServo trabaja en grados (min_angle / max_angle)         # 0.5 ms                # 2.4 ms
 # Ajustar el ancho de pulso según el modelo (SG90, etc.), porque si no, puede vibrar o no llegar del todo a los extremos.
-servo = AngularServo( SERVO_PIN, min_angle=0, max_angle=180, min_pulse_width=0.0005, max_pulse_width=0.0024)
+servo = AngularServo( SERVO_PIN)
 
 # Bomba: muchos relés se activan con nivel BAJO → active_high=False
 bomba = OutputDevice( PUMP_PIN, active_high=True, initial_value=False)
