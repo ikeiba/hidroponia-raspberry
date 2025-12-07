@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel Hidroponía</title>
+
+    <!-- Recarga automática cada 5 segundos (opcional) -->
+    <meta http-equiv="refresh" content="5">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+
+    <!-- Google Charts -->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <script type="text/javascript">
+        // Cargamos Google Charts con el paquete de gauges
+        google.charts.load('current', {'packages':['gauge']});
+        google.charts.setOnLoadCallback(drawGauges);
+
+        function drawGauges() {
+            // Valores desde Flask (Jinja)
+            var temp = {{ temp|default(0, true) }};
+            var tds  = {{ tds|default(0, true) }};
+
+            // ---------- Gauge de Temperatura ----------
+            var dataTemp = google.visualization.arrayToDataTable([
+                ['Label', 'Value'],
+                ['Temp °C', temp]
+            ]);
+
+            var optionsTemp = {
+                width: 300, height: 300,
+                min: 0, max: 40,
+                minorTicks: 5,
+                // Verde entre 10 y 30, amarillo alrededor y rojo en los extremos
+                greenFrom: 10, greenTo: 30,
+                yellowFrom: 30, yellowTo: 35,
+                redFrom: 35, redTo: 40
+            };
+
+            var chartTemp = new google.visualization.Gauge(
+                document.getElementById('gauge_temp')
+            );
+            chartTemp.draw(dataTemp, optionsTemp);
+
+            // ---------- Gauge de TDS ----------
+            var dataTDS = google.visualization.arrayToDataTable([
+                ['Label', 'Value'],
+                ['TDS ppm', tds]
+            ]);
+
+            var optionsTDS = {
+                width: 300, height: 300,
+                min: 0, max: 800,
+                minorTicks: 5,
+                // Verde hasta 300, amarillo hasta 400, rojo a partir de 400
+                greenFrom: 0, greenTo: 300,
+                yellowFrom: 300, yellowTo: 400,
+                redFrom: 400, redTo: 800
+            };
+
+            var chartTDS = new google.visualization.Gauge(
+                document.getElementById('gauge_tds')
+            );
+            chartTDS.draw(dataTDS, optionsTDS);
+        }
+    </script>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard__header">
+            <h1>Sistema de Hidroponía</h1>
+            <p class="dashboard__subtitle">
+                Estado en tiempo real desde la Raspberry Pi
+            </p>
+        </header>
+
+        <!-- Sección de gauges -->
+        <section class="dashboard__section dashboard__section--gauges">
+            <div class="card card--gauge">
+                <h2>Temperatura del agua</h2>
+                <div id="gauge_temp" class="gauge"></div>
+                <p class="card__value">
+                    {{ temp|default('—', true) }} °C
+                </p>
+            </div>
+
+            <div class="card card--gauge">
+                <h2>TDS (Nutrientes)</h2>
+                <div id="gauge_tds" class="gauge"></div>
+                <p class="card__value">
+                    {{ tds|default('—', true) }} ppm
+                </p>
+            </div>
+        </section>
+
+        <!-- Sección de estados -->
+        <section class="dashboard__section dashboard__section--status">
+            <div class="card">
+                <h2>Bomba de agua</h2>
+                {% if bomba_on %}
+                    <span class="badge badge--on">Encendida</span>
+                {% else %}
+                    <span class="badge badge--off">Apagada</span>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h2>LEDs</h2>
+                <div class="led-status">
+                    <div class="led-status__item">
+                        <span class="led-circle {% if led_verde_on %}led-circle--on{% else %}led-circle--off{% endif %}"></span>
+                        <span>LED Verde</span>
+                        {% if led_verde_on %}
+                            <span class="badge badge--on">ON</span>
+                        {% else %}
+                            <span class="badge badge--off">OFF</span>
+                        {% endif %}
+                    </div>
+                    <div class="led-status__item">
+                        <span class="led-circle led-circle--red {% if led_rojo_on %}led-circle--on{% else %}led-circle--off{% endif %}"></span>
+                        <span>LED Rojo</span>
+                        {% if led_rojo_on %}
+                            <span class="badge badge--alert">ALERTA</span>
+                        {% else %}
+                            <span class="badge badge--off">OFF</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Servo motor</h2>
+                <p>
+                    Activaciones totales:
+                    <strong>{{ servo_count|default(0, true) }}</strong>
+                </p>
+                <p>
+                    Estado actual:
+                    {% if tds is not none and tds < 300 %}
+                        <span class="badge badge--alert">DOSIFICANDO (según TDS)</span>
+                    {% elif servo_count|default(0, true) > 0 %}
+                        <span class="badge badge--on">En reposo (ya ha actuado)</span>
+                    {% else %}
+                        <span class="badge badge--off">En reposo</span>
+                    {% endif %}
+                </p>
+            </div>
+        </section>
+    </div>
+</body>
+</html>
