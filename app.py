@@ -1,9 +1,6 @@
-from gpiozero import LED
 from flask import Flask, render_template
 from hardware import sensores, actuadores, controlador
 
-LED_PIN = 17
-led = LED(LED_PIN)
 
 app = Flask(__name__)
 
@@ -11,14 +8,14 @@ app = Flask(__name__)
 def index():
 	estado = "apagado"
 	onoff = "off"
-	if led.is_lit:
+	if controlador.get_estado()["led_verde_on"]:
 		estado = "encendido"
 		onoff = "on"
 	return render_template('index.html', estado = estado, onoff = onoff)
 
 @app.route('/toggleLED')
 def toggleLED():
-	if led.is_lit:
+	if controlador.get_estado()["led_verde_on"]:
 		led.off()
 		estado = "apagado"
 		onoff = "off"

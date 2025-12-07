@@ -42,12 +42,12 @@ from gpiozero import Button
 
 from . import sensores, actuadores
 
-# Intentamos importar el escritor de InfluxDB
+# Intentamos importar el publicador de MQTT
 try:
-    from data import influx_writer
+    from data import mqtt_publicador
 except ImportError:
-    influx_writer = None
-    print("[CONTROLADOR] Aviso: no se ha encontrado data.influx_writer; no se publicarán datos en InfluxDB.")
+    mqtt_publicador = None
+    print("[CONTROLADOR] Aviso: No se encontró data.mqtt_publicador")
 
 
 # =========================
@@ -173,15 +173,18 @@ def _hilo_lectura_sensores():
 
             print(f"[CONTROLADOR] Sensores → temp={temp}ºC, TDS={tds_ppm}ppm, nivel={nivel}")
 
-            # Publicar en InfluxDB
-            if influx_writer is not None:
-                medida = {
-                    "temp": temp,
-                    "tds": tds_ppm,
-                    "nivel_agua": nivel,
-                    "timestamp": time.time(),
+            # Publicar vía MQTT
+            if mqtt_publicador is not None:
+                # Preparamos el diccionario con TODO lo que espera tu base de datos
+                estado_actual = {
+                    "temperatura": temp if temp is not None else 0.0,
+                    "tds": tds_ppm if tds_ppm is not None else 0,
+                    "voltaje": 0.0, # Si no tienes sensor de voltaje real, pon 0 o simúlalo
+                    "bomba": estado["sistema_activo"],  # La bomba va con el sistema
+                    "led_accion": False, # Tendrías que leer el estado real si quieres
+                    "led_alerta": estado["led_rojo_on"]
                 }
-                influx_writer.publicar_medida(medida)
+                mqtt_publicador.publicar_telemetria(estado_actual)
 
         time.sleep(TIEMPO_LECTURA)
 
@@ -270,8 +273,8 @@ def iniciar():
     actuadores.led_rojo_off()
 
     # Iniciar Influx si existe
-    if influx_writer is not None:
-        influx_writer.iniciar()
+    if mqtt_publicador is not None:
+        mqtt_publicador.iniciar()
 
     # Hilo botón
     threading.Thread(target=_hilo_boton, daemon=True).start()
