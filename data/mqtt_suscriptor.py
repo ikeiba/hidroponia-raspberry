@@ -75,7 +75,7 @@ except ConnectionRefusedError:
 
 # Bucle infinito para mantener el script escuchando
 try:
-    client_mqtt.loop_forever()
+    client_mqtt.loop_start() # ANTES ESTABA loop_forever()
 except KeyboardInterrupt:
     print("\n🛑 Deteniendo suscriptor...")
     client_mqtt.disconnect()
