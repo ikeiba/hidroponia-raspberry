@@ -26,8 +26,16 @@ LED_ROJO_PIN = 24    # LED 2 (por ejemplo: alarma / error)
 # INSTANCIAS DE DISPOSITIVOS
 
 # Servo: AngularServo trabaja en grados (min_angle / max_angle)         # 0.5 ms                # 2.4 ms
-# Ajustar el ancho de pulso según el modelo (SG90, etc.), porque si no, puede vibrar o no llegar del todo a los extremos.
-servo = AngularServo( SERVO_PIN)
+# --- CORRECCIÓN SERVO ---
+# Añadimos min_pulse_width y max_pulse_width. 
+# Valores típicos para SG90: 0.0005 (0.5ms) a 0.0024 (2.4ms)
+servo = AngularServo(
+    SERVO_PIN, 
+    min_angle=-90, 
+    max_angle=90, 
+    min_pulse_width=0.0005, 
+    max_pulse_width=0.0024
+)
 
 # Bomba: muchos relés se activan con nivel BAJO → active_high=False
 bomba = OutputDevice( PUMP_PIN, active_high=True, initial_value=False)
@@ -41,23 +49,21 @@ led_rojo = LED(LED_ROJO_PIN)
 ANGULO_CERRADO = -90
 ANGULO_ABIERTO = 90
 
-def mover_servo_angulo(angulo: float):
-    """
-    Mueve el servo al ángulo especificado (0–180 grados aprox).
-    """
-    servo.angle = angulo
-
 def servo_abrir():
     """
-    Posición 'abierta' (por ejemplo para dosificar nutrientes).
+    Abre, espera a que llegue y corta la señal para evitar ruido.
     """
     servo.angle = ANGULO_ABIERTO
+    sleep(0.5)      # Damos tiempo al motor para llegar
+    servo.detach()  # <--- TRUCO: Corta la señal PWM. El servo se relaja y deja de sonar.
 
 def servo_cerrar():
     """
-    Posición 'cerrada'.
+    Cierra, espera a que llegue y corta la señal.
     """
     servo.angle = ANGULO_CERRADO
+    sleep(0.5)
+    servo.detach()  # <--- TRUCO
 
 # FUNCIONES PARA LA BOMBA
 
