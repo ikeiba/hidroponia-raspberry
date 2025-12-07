@@ -51,6 +51,21 @@
                     <input type="number" step="1" name="tds_min" value="{{ TDS_MIN }}">
                 </div>
 
+
+
+                <h2 style="border-bottom: 1px solid #374151; padding-bottom: 10px; margin-top:20px;">Automatización</h2>
+
+                <div class="form-group">
+                    <label>Intervalo de Lectura de Sensores (segundos)</label>
+                    <input type="number" step="0.5" min="0.5" name="reading_time" value="{{ TIEMPO_LECTURA }}">
+                    <small style="color: #6b7280;">Cuidado: valores muy bajos (< 1s) pueden saturar la CPU o la base de datos.</small>
+                </div>
+
+                <div class="form-group">
+                    <label>TDS Mínimo (ppm) - Disparar Servo</label>
+                    <input type="number" step="1" name="tds_min" value="{{ TDS_MIN }}">
+                </div>
+
                 <div class="form-group">
                     <label>Tiempo de espera Servo (segundos)</label>
                     <input type="number" step="1" name="servo_cd" value="{{ SERVO_COOLDOWN }}">

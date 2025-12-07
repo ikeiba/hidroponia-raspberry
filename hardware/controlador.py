@@ -194,6 +194,8 @@ def _hilo_lectura_sensores():
             _set_estado("tds", tds_ppm)
             _set_estado("nivel_agua", nivel)
 
+            print(f"[CONTROLADOR] Sensores → temp={temp}ºC, TDS={tds_ppm}ppm, nivel={nivel}")
+
             if mqtt_publicador is not None:
                 # ... (publicar_telemetria igual que antes) ...
                 pass
