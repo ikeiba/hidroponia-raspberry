@@ -3,7 +3,7 @@ import os
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from hardware import controlador
 from data import influx_reader  # <--- IMPORTAR EL NUEVO MODULO
-from data import logger_web as log_buffer # Importamos la lista de memoria
+from data.logger_web import logger # Importamos la lista de memoria
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

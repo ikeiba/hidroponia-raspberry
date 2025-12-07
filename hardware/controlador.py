@@ -41,7 +41,7 @@ import time
 from gpiozero import Button
 
 from . import sensores, actuadores
-from data import logger_web as logger  # <--- IMPORTAR EL LOGGER NUEVO
+from data.logger_web import logger  # <--- IMPORTAR EL LOGGER NUEVO
 
 # Intentamos importar el publicador de MQTT
 try:
