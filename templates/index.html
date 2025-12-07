@@ -3,163 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <title>Panel Hidroponía</title>
-
-    <!-- Recarga automática cada 5 segundos (opcional) -->
-    <meta http-equiv="refresh" content="5">
-
-    <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
-
-    <!-- Google Charts -->
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
     <script type="text/javascript">
-        // Cargamos Google Charts con el paquete de gauges
         google.charts.load('current', {'packages':['gauge']});
-        google.charts.setOnLoadCallback(drawGauges);
+        google.charts.setOnLoadCallback(iniciarDashboard);
 
-        function drawGauges() {
-            // Valores desde Flask (Jinja)
-            var temp = {{ temp|default(0, true) }};
-            var tds  = {{ tds|default(0, true) }};
+        var gaugeTemp, gaugeTDS;
+        var dataTemp, dataTDS;
+        var optionsTemp, optionsTDS;
 
-            // ---------- Gauge de Temperatura ----------
-            var dataTemp = google.visualization.arrayToDataTable([
-                ['Label', 'Value'],
-                ['Temp °C', temp]
-            ]);
+        function iniciarDashboard() {
+            // 1. Inicializar objetos de Google Charts UNA VEZ
+            dataTemp = google.visualization.arrayToDataTable([['Label', 'Value'], ['Temp °C', 0]]);
+            dataTDS = google.visualization.arrayToDataTable([['Label', 'Value'], ['TDS ppm', 0]]);
 
-            var optionsTemp = {
-                width: 300, height: 300,
-                min: 0, max: 40,
-                minorTicks: 5,
-                // Verde entre 10 y 30, amarillo alrededor y rojo en los extremos
-                greenFrom: 10, greenTo: 30,
-                yellowFrom: 30, yellowTo: 35,
-                redFrom: 35, redTo: 40
+            optionsTemp = {
+                width: 300, height: 300, min: 0, max: 40,
+                greenFrom: 10, greenTo: 30, yellowFrom: 30, yellowTo: 35, redFrom: 35, redTo: 40,
+                minorTicks: 5
+            };
+            optionsTDS = {
+                width: 300, height: 300, min: 0, max: 800,
+                greenFrom: 0, greenTo: 300, yellowFrom: 300, yellowTo: 400, redFrom: 400, redTo: 800,
+                minorTicks: 5
             };
 
-            var chartTemp = new google.visualization.Gauge(
-                document.getElementById('gauge_temp')
-            );
-            chartTemp.draw(dataTemp, optionsTemp);
+            gaugeTemp = new google.visualization.Gauge(document.getElementById('gauge_temp'));
+            gaugeTDS = new google.visualization.Gauge(document.getElementById('gauge_tds'));
 
-            // ---------- Gauge de TDS ----------
-            var dataTDS = google.visualization.arrayToDataTable([
-                ['Label', 'Value'],
-                ['TDS ppm', tds]
-            ]);
+            gaugeTemp.draw(dataTemp, optionsTemp);
+            gaugeTDS.draw(dataTDS, optionsTDS);
 
-            var optionsTDS = {
-                width: 300, height: 300,
-                min: 0, max: 800,
-                minorTicks: 5,
-                // Verde hasta 300, amarillo hasta 400, rojo a partir de 400
-                greenFrom: 0, greenTo: 300,
-                yellowFrom: 300, yellowTo: 400,
-                redFrom: 400, redTo: 800
-            };
+            // 2. Iniciar el bucle de actualización (cada 2 segundos)
+            actualizarDatos(); // Primera llamada inmediata
+            setInterval(actualizarDatos, 2000); 
+        }
 
-            var chartTDS = new google.visualization.Gauge(
-                document.getElementById('gauge_tds')
-            );
-            chartTDS.draw(dataTDS, optionsTDS);
+        async function actualizarDatos() {
+            try {
+                // Pedimos el JSON al servidor
+                let response = await fetch('/api/estado');
+                let data = await response.json();
+
+                // --- Actualizar Gauges ---
+                // Google Charts necesita setValue(fila, columna, valor)
+                dataTemp.setValue(0, 1, data.temp || 0);
+                dataTDS.setValue(0, 1, data.tds || 0);
+                
+                gaugeTemp.draw(dataTemp, optionsTemp);
+                gaugeTDS.draw(dataTDS, optionsTDS);
+
+                // --- Actualizar Textos y Badges ---
+                
+                // Texto valores numéricos
+                document.getElementById('val-temp').innerText = (data.temp ? data.temp + " °C" : "--");
+                document.getElementById('val-tds').innerText = (data.tds ? data.tds + " ppm" : "--");
+                document.getElementById('val-servo').innerText = data.servo_count || 0;
+
+                // Badge Bomba
+                let badgeBomba = document.getElementById('badge-bomba');
+                if (data.bomba_on) {
+                    badgeBomba.className = "badge badge--on";
+                    badgeBomba.innerText = "Encendida";
+                } else {
+                    badgeBomba.className = "badge badge--off";
+                    badgeBomba.innerText = "Apagada";
+                }
+
+                // LEDs
+                actualizarLed('led-verde', data.led_verde_on, "ON");
+                actualizarLed('led-rojo', data.led_rojo_on, "ALERTA");
+
+            } catch (error) {
+                console.error("Error actualizando datos:", error);
+            }
+        }
+
+        function actualizarLed(idElemento, estadoOn, textoOn) {
+            let container = document.getElementById(idElemento); // el div padre .led-status__item
+            let circulo = container.querySelector('.led-circle');
+            let badge = container.querySelector('.badge');
+
+            if (estadoOn) {
+                circulo.classList.add('led-circle--on');
+                circulo.classList.remove('led-circle--off');
+                badge.className = (idElemento === 'led-rojo') ? "badge badge--alert" : "badge badge--on";
+                badge.innerText = textoOn;
+            } else {
+                circulo.classList.remove('led-circle--on');
+                circulo.classList.add('led-circle--off');
+                badge.className = "badge badge--off";
+                badge.innerText = "OFF";
+            }
         }
     </script>
 </head>
 <body>
-    <header class="dashboard__header">
-        <h1>Sistema de Hidroponía</h1>
-        <div style="margin: 15px 0;">
-            <a href="/graficas" style="
-                background-color: #2563eb; 
-                color: white; 
-                padding: 10px 20px; 
-                text-decoration: none; 
-                border-radius: 8px; 
-                font-weight: bold; 
-                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                transition: background 0.3s;">
-                📈 Ver Historial y Gráficas
-            </a>
-        </div>
-        <p class="dashboard__subtitle">
-            Estado en tiempo real desde la Raspberry Pi
-        </p>
-    </header>
+    <div class="dashboard">
+        <header class="dashboard__header">
+            <h1>Sistema de Hidroponía</h1>
+            <div style="margin: 15px 0; display:flex; justify-content:center; gap:10px;">
+                <a href="/graficas" class="btn-nav">📈 Ver Gráficas</a>
+                <a href="/config" class="btn-nav" style="background:#4b5563;">⚙️ Configuración</a>
+            </div>
+            <p class="dashboard__subtitle">Monitor en tiempo real (AJAX)</p>
+        </header>
 
-        <!-- Sección de gauges -->
         <section class="dashboard__section dashboard__section--gauges">
             <div class="card card--gauge">
-                <h2>Temperatura del agua</h2>
+                <h2>Temperatura</h2>
                 <div id="gauge_temp" class="gauge"></div>
-                <p class="card__value">
-                    {{ temp|default('—', true) }} °C
-                </p>
+                <p class="card__value" id="val-temp">--</p>
             </div>
-
             <div class="card card--gauge">
                 <h2>TDS (Nutrientes)</h2>
                 <div id="gauge_tds" class="gauge"></div>
-                <p class="card__value">
-                    {{ tds|default('—', true) }} ppm
-                </p>
+                <p class="card__value" id="val-tds">--</p>
             </div>
         </section>
 
-        <!-- Sección de estados -->
         <section class="dashboard__section dashboard__section--status">
             <div class="card">
                 <h2>Bomba de agua</h2>
-                {% if bomba_on %}
-                    <span class="badge badge--on">Encendida</span>
-                {% else %}
-                    <span class="badge badge--off">Apagada</span>
-                {% endif %}
+                <span id="badge-bomba" class="badge badge--off">Cargando...</span>
             </div>
 
             <div class="card">
                 <h2>LEDs</h2>
                 <div class="led-status">
-                    <div class="led-status__item">
-                        <span class="led-circle {% if led_verde_on %}led-circle--on{% else %}led-circle--off{% endif %}"></span>
-                        <span>LED Verde</span>
-                        {% if led_verde_on %}
-                            <span class="badge badge--on">ON</span>
-                        {% else %}
-                            <span class="badge badge--off">OFF</span>
-                        {% endif %}
+                    <div class="led-status__item" id="led-verde">
+                        <span class="led-circle led-circle--off"></span>
+                        <span>Verde</span>
+                        <span class="badge badge--off">OFF</span>
                     </div>
-                    <div class="led-status__item">
-                        <span class="led-circle led-circle--red {% if led_rojo_on %}led-circle--on{% else %}led-circle--off{% endif %}"></span>
-                        <span>LED Rojo</span>
-                        {% if led_rojo_on %}
-                            <span class="badge badge--alert">ALERTA</span>
-                        {% else %}
-                            <span class="badge badge--off">OFF</span>
-                        {% endif %}
+                    <div class="led-status__item" id="led-rojo">
+                        <span class="led-circle led-circle--red led-circle--off"></span>
+                        <span>Rojo</span>
+                        <span class="badge badge--off">OFF</span>
                     </div>
                 </div>
             </div>
 
             <div class="card">
-                <h2>Servo motor</h2>
-                <p>
-                    Activaciones totales:
-                    <strong>{{ servo_count|default(0, true) }}</strong>
-                </p>
-                <p>
-                    Estado actual:
-                    {% if tds is not none and tds < 300 %}
-                        <span class="badge badge--alert">DOSIFICANDO (según TDS)</span>
-                    {% elif servo_count|default(0, true) > 0 %}
-                        <span class="badge badge--on">En reposo (ya ha actuado)</span>
-                    {% else %}
-                        <span class="badge badge--off">En reposo</span>
-                    {% endif %}
-                </p>
+                <h2>Servo</h2>
+                <p>Activaciones: <strong id="val-servo">0</strong></p>
             </div>
         </section>
     </div>
+    
+    <style>
+        .btn-nav {
+            background-color: #2563eb; color: white; padding: 8px 16px;
+            text-decoration: none; border-radius: 6px; font-weight: 600;
+        }
+        .btn-nav:hover { opacity: 0.9; }
+    </style>
 </body>
 </html>

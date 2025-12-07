@@ -1,6 +1,6 @@
 # app.py (Versión actualizada)
 import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from hardware import controlador
 from data import influx_reader  # <--- IMPORTAR EL NUEVO MODULO
 
@@ -53,6 +53,37 @@ def api_historial():
     
     datos = influx_reader.obtener_historial(sensor, rango)
     return jsonify(datos)
+
+
+# --- API JSON (Para evitar el parpadeo) ---
+
+@app.route("/api/estado")
+def api_estado():
+    # Devuelve el estado actual en formato JSON puro
+    try:
+        data = controlador.get_estado()
+        # Aseguramos que data es serializable
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)})
+
+# --- CONFIGURACIÓN ---
+@app.route("/config", methods=["GET", "POST"])
+def config():
+    if request.method == "POST":
+        nueva_conf = {
+            "TEMP_MIN": request.form.get("temp_min"),
+            "TEMP_MAX": request.form.get("temp_max"),
+            "TDS_MIN": request.form.get("tds_min"),
+            "TDS_ALERT": request.form.get("tds_alert"),
+            "SERVO_COOLDOWN": request.form.get("servo_cd"),
+            "TIEMPO_LECTURA": request.form.get("reading_time"), # <--- NUEVO CAMPO
+        }
+        controlador.update_config(nueva_conf)
+        return redirect(url_for('config'))
+
+    cfg_actual = controlador.get_config()
+    return render_template("config.html", **cfg_actual)
 
 
 if __name__ == "__main__":
