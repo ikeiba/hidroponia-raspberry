@@ -20,8 +20,8 @@ from time import sleep
 # Cambia estos pines según tu montaje real
 SERVO_PIN = 18       # Pin GPIO para el servo (PWM)
 PUMP_PIN = 27        # Pin GPIO para el relé de la bomba
-LED_VERDE_PIN = 23   # LED 1 (por ejemplo: sistema OK)
-LED_ROJO_PIN = 24    # LED 2 (por ejemplo: alarma / error)
+LED_VERDE_PIN = 24   
+LED_ROJO_PIN = 23    
 
 # INSTANCIAS DE DISPOSITIVOS
 
