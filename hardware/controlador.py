@@ -279,10 +279,17 @@ def _hilo_maestro():
             with _lock_estado: estado["led_verde_on"] = False
 
         # 5. Publicar en MQTT (si existe)
+        # 4. PUBLICAR MQTT (CORREGIDO: claves exactas)
         if mqtt_publicador:
-            mqtt_publicador.publicar_telemetria({
-                "temperatura": temp, "tds": tds, "bomba": True
-            })
+            datos_mqtt = {
+                "temperatura": float(temp),   # Antes era "temp"
+                "tds": int(tds),
+                "voltaje": float(voltaje),    # Faltaba antes
+                "bomba": True,                # Se mapea a 'bomba_activa'
+                "led_accion": led_verde_state,
+                "led_alerta": led_rojo_state
+            }
+            mqtt_publicador.publicar_telemetria(datos_mqtt)
 
         # Esperar el tiempo configurado para la siguiente lectura (2.5s)
         time.sleep(T_LECTURA)
