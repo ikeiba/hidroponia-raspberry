@@ -30,4 +30,4 @@ def index():
 if __name__ == "__main__":
     # host='0.0.0.0' → accesible desde otros dispositivos de la red
     # port=8000 → abre en el puerto 8000 (http://IP_DE_LA_PI:8000/)
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000, debug=False)
