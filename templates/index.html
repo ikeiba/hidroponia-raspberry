@@ -4,172 +4,62 @@
     <meta charset="UTF-8">
     <title>Panel Hidroponía</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 
-    <style>
-        /* Ajuste para que los gráficos se vean bien centrados */
-        .gauge-container {
-            position: relative;
-            height: 200px;
-            width: 300px;
-            margin: 0 auto;
-        }
-        .gauge-value {
-            position: absolute;
-            bottom: 20px;
-            width: 100%;
-            text-align: center;
-            font-size: 2rem;
-            font-weight: bold;
-            color: #e5e7eb;
-        }
-        .gauge-label {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            text-align: center;
-            color: #9ca3af;
-            font-size: 0.9rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="dashboard">
-        <header class="dashboard__header">
-            <h1>Sistema de Hidroponía</h1>
-            <div style="margin: 15px 0; display:flex; justify-content:center; gap:10px;">
-                <a href="/graficas" class="btn-nav">📈 Ver Gráficas</a>
-                <a href="/logs" class="btn-nav" style="background:#0f172a; border: 1px solid #334155;">📟 Logs</a>
-                <a href="/config" class="btn-nav" style="background:#4b5563;">⚙️ Configuración</a>
-            </div>
-            <p class="dashboard__subtitle">Monitor en tiempo real</p>
-        </header>
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['gauge']});
+        google.charts.setOnLoadCallback(iniciarDashboard);
 
-        <section class="dashboard__section dashboard__section--gauges">
-            <div class="card card--gauge">
-                <h2>Temperatura</h2>
-                <div class="gauge-container">
-                    <canvas id="chart-temp"></canvas>
-                    <div class="gauge-value" id="val-temp-num">--</div>
-                    <div class="gauge-label">Grados Celsius (°C)</div>
-                </div>
-            </div>
-
-            <div class="card card--gauge">
-                <h2>TDS (Nutrientes)</h2>
-                <div class="gauge-container">
-                    <canvas id="chart-tds"></canvas>
-                    <div class="gauge-value" id="val-tds-num">--</div>
-                    <div class="gauge-label">Partes por millón (ppm)</div>
-                </div>
-            </div>
-        </section>
-
-        <section class="dashboard__section dashboard__section--status">
-            <div class="card">
-                <h2>Bomba de agua</h2>
-                <span id="badge-bomba" class="badge badge--off">Cargando...</span>
-            </div>
-
-            <div class="card">
-                <h2>LEDs</h2>
-                <div class="led-status">
-                    <div class="led-status__item" id="led-verde">
-                        <span class="led-circle led-circle--off"></span>
-                        <span>Verde (TDS/Servo)</span>
-                        <span class="badge badge--off">OFF</span>
-                    </div>
-                    <div class="led-status__item" id="led-rojo">
-                        <span class="led-circle led-circle--red led-circle--off"></span>
-                        <span>Rojo (Temp)</span>
-                        <span class="badge badge--off">OFF</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2>Servo</h2>
-                <p>Dosis aplicadas: <strong id="val-servo">0</strong></p>
-            </div>
-        </section>
-    </div>
-
-    <script>
-        let chartTemp, chartTds;
-
-        // Configuración común para gauges tipo "media dona"
-        const commonOptions = {
-            rotation: -90,
-            circumference: 180,
-            cutout: '80%', // Grosor de la línea
-            plugins: { legend: { display: false }, tooltip: { enabled: false } }
-        };
+        var gaugeTemp, gaugeTDS;
+        var dataTemp, dataTDS;
+        var optionsTemp, optionsTDS;
 
         function iniciarDashboard() {
-            // --- 1. Inicializar Gráfico Temperatura ---
-            const ctxTemp = document.getElementById('chart-temp').getContext('2d');
-            chartTemp = new Chart(ctxTemp, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Valor', 'Restante'],
-                    datasets: [{
-                        data: [0, 40], // 0 de 40 max
-                        backgroundColor: ['#3b82f6', '#1f2937'], // Azul y Gris oscuro
-                        borderWidth: 0
-                    }]
-                },
-                options: commonOptions
-            });
+            // 1. Inicializar objetos de Google Charts UNA VEZ
+            dataTemp = google.visualization.arrayToDataTable([['Label', 'Value'], ['Temp °C', 0]]);
+            dataTDS = google.visualization.arrayToDataTable([['Label', 'Value'], ['TDS ppm', 0]]);
 
-            // --- 2. Inicializar Gráfico TDS ---
-            const ctxTds = document.getElementById('chart-tds').getContext('2d');
-            chartTds = new Chart(ctxTds, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Valor', 'Restante'],
-                    datasets: [{
-                        data: [0, 1000], // 0 de 1000 max
-                        backgroundColor: ['#10b981', '#1f2937'], // Verde y Gris oscuro
-                        borderWidth: 0
-                    }]
-                },
-                options: commonOptions
-            });
+            optionsTemp = {
+                width: 300, height: 300, min: 0, max: 40,
+                greenFrom: 10, greenTo: 30, yellowFrom: 30, yellowTo: 35, redFrom: 35, redTo: 40,
+                minorTicks: 5
+            };
+            optionsTDS = {
+                width: 300, height: 300, min: 0, max: 800,
+                greenFrom: 0, greenTo: 300, yellowFrom: 300, yellowTo: 400, redFrom: 400, redTo: 800,
+                minorTicks: 5
+            };
 
-            // --- 3. Bucle de actualización ---
-            actualizarDatos();
-            setInterval(actualizarDatos, 2000);
+            gaugeTemp = new google.visualization.Gauge(document.getElementById('gauge_temp'));
+            gaugeTDS = new google.visualization.Gauge(document.getElementById('gauge_tds'));
+
+            gaugeTemp.draw(dataTemp, optionsTemp);
+            gaugeTDS.draw(dataTDS, optionsTDS);
+
+            // 2. Iniciar el bucle de actualización (cada 2 segundos)
+            actualizarDatos(); // Primera llamada inmediata
+            setInterval(actualizarDatos, 2000); 
         }
 
         async function actualizarDatos() {
             try {
+                // Pedimos el JSON al servidor
                 let response = await fetch('/api/estado');
                 let data = await response.json();
 
-                // --- Actualizar TEMP ---
-                let temp = data.temp || 0;
-                let tempColor = '#3b82f6'; // Azul (normal)
-                if (temp < 15) tempColor = '#3b82f6'; // Frío
-                if (temp > 25) tempColor = '#ef4444'; // Rojo (Calor)
+                // --- Actualizar Gauges ---
+                // Google Charts necesita setValue(fila, columna, valor)
+                dataTemp.setValue(0, 1, data.temp || 0);
+                dataTDS.setValue(0, 1, data.tds || 0);
                 
-                chartTemp.data.datasets[0].data = [temp, 40 - temp]; // Asumiendo max 40
-                chartTemp.data.datasets[0].backgroundColor = [tempColor, '#374151'];
-                chartTemp.update();
-                document.getElementById('val-temp-num').innerText = temp.toFixed(1);
+                gaugeTemp.draw(dataTemp, optionsTemp);
+                gaugeTDS.draw(dataTDS, optionsTDS);
 
-                // --- Actualizar TDS ---
-                let tds = data.tds || 0;
-                let tdsColor = '#10b981'; // Verde (bien)
-                if (tds < 500) tdsColor = '#f59e0b'; // Amarillo/Naranja (Alerta bajo)
+                // --- Actualizar Textos y Badges ---
                 
-                // Topamos el gráfico a 1000 para que no se rompa si sube mucho
-                let tdsVisual = tds > 1000 ? 1000 : tds; 
-                chartTds.data.datasets[0].data = [tdsVisual, 1000 - tdsVisual];
-                chartTds.data.datasets[0].backgroundColor = [tdsColor, '#374151'];
-                chartTds.update();
-                document.getElementById('val-tds-num').innerText = tds;
-
-                // --- Textos y Badges ---
+                // Texto valores numéricos
+                document.getElementById('val-temp').innerText = (data.temp ? data.temp + " °C" : "--");
+                document.getElementById('val-tds').innerText = (data.tds ? data.tds + " ppm" : "--");
                 document.getElementById('val-servo').innerText = data.servo_count || 0;
 
                 // Badge Bomba
@@ -187,29 +77,89 @@
                 actualizarLed('led-rojo', data.led_rojo_on, "ALERTA");
 
             } catch (error) {
-                console.error("Error:", error);
+                console.error("Error actualizando datos:", error);
             }
         }
 
-        function actualizarLed(id, on, text) {
-            let el = document.getElementById(id);
-            let circle = el.querySelector('.led-circle');
-            let badge = el.querySelector('.badge');
-            if(on){
-                circle.classList.add('led-circle--on');
-                circle.classList.remove('led-circle--off');
-                badge.className = id === 'led-rojo' ? "badge badge--alert" : "badge badge--on";
-                badge.innerText = text;
+        function actualizarLed(idElemento, estadoOn, textoOn) {
+            let container = document.getElementById(idElemento); // el div padre .led-status__item
+            let circulo = container.querySelector('.led-circle');
+            let badge = container.querySelector('.badge');
+
+            if (estadoOn) {
+                circulo.classList.add('led-circle--on');
+                circulo.classList.remove('led-circle--off');
+                badge.className = (idElemento === 'led-rojo') ? "badge badge--alert" : "badge badge--on";
+                badge.innerText = textoOn;
             } else {
-                circle.classList.remove('led-circle--on');
-                circle.classList.add('led-circle--off');
+                circulo.classList.remove('led-circle--on');
+                circulo.classList.add('led-circle--off');
                 badge.className = "badge badge--off";
                 badge.innerText = "OFF";
             }
         }
-
-        // Arrancar
-        iniciarDashboard();
     </script>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard__header">
+            <h1>Sistema de Hidroponía</h1>
+            <div style="margin: 15px 0; display:flex; justify-content:center; gap:10px;">
+                <a href="/graficas" class="btn-nav">📈 Ver Gráficas</a>
+                <a href="/logs" class="btn-nav" style="background:#0f172a; border: 1px solid #334155;">📟 Logs</a>
+                <a href="/config" class="btn-nav" style="background:#4b5563;">⚙️ Configuración</a>
+            </div>
+            <p class="dashboard__subtitle">Monitor en tiempo real (AJAX)</p>
+        </header>
+
+        <section class="dashboard__section dashboard__section--gauges">
+            <div class="card card--gauge">
+                <h2>Temperatura</h2>
+                <div id="gauge_temp" class="gauge"></div>
+                <p class="card__value" id="val-temp">--</p>
+            </div>
+            <div class="card card--gauge">
+                <h2>TDS (Nutrientes)</h2>
+                <div id="gauge_tds" class="gauge"></div>
+                <p class="card__value" id="val-tds">--</p>
+            </div>
+        </section>
+
+        <section class="dashboard__section dashboard__section--status">
+            <div class="card">
+                <h2>Bomba de agua</h2>
+                <span id="badge-bomba" class="badge badge--off">Cargando...</span>
+            </div>
+
+            <div class="card">
+                <h2>LEDs</h2>
+                <div class="led-status">
+                    <div class="led-status__item" id="led-verde">
+                        <span class="led-circle led-circle--off"></span>
+                        <span>Verde</span>
+                        <span class="badge badge--off">OFF</span>
+                    </div>
+                    <div class="led-status__item" id="led-rojo">
+                        <span class="led-circle led-circle--red led-circle--off"></span>
+                        <span>Rojo</span>
+                        <span class="badge badge--off">OFF</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Servo</h2>
+                <p>Activaciones: <strong id="val-servo">0</strong></p>
+            </div>
+        </section>
+    </div>
+    
+    <style>
+        .btn-nav {
+            background-color: #2563eb; color: white; padding: 8px 16px;
+            text-decoration: none; border-radius: 6px; font-weight: 600;
+        }
+        .btn-nav:hover { opacity: 0.9; }
+    </style>
 </body>
 </html>
