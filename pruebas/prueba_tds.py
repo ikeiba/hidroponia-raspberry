@@ -27,7 +27,7 @@ def leer_sensores_agua(out_queue):
         ads.gain = 1
 
         # Canal analógico en A0
-        canal_tds = AnalogIn(ads, 0)  # canal A0 del ADS1115
+        canal_tds = AnalogIn(ads, 1)  # canal A0 del ADS1115
         # 2. Configurar Sensor de Temperatura
 
         print("Hardware inicializado: ADS1115 y DS18B20 encontrados.")
