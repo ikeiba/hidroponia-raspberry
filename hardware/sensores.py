@@ -19,9 +19,12 @@ import time
 
 from w1thermsensor import W1ThermSensor, Unit
 
+import busio  # <- importante con Blinka
 import board
-import adafruit_ads1x15.ads1115 as ADS
+import adafruit_ads1x15.ads1115 as ADS1115_mod
+import adafruit_ads1x15.ads1x15 as ADS_CFG
 from adafruit_ads1x15.analog_in import AnalogIn
+
 
 # TEMPERATURA (DS18B20)
 
@@ -55,10 +58,10 @@ def leer_temperatura():
 
 # Configuración I2C + ADS1115
 try:
-    i2c = board.I2C()        # Usa SDA/SCL por defecto de la Pi
-    ads = ADS.ADS1115(i2c)
+    i2c = busio.I2C(board.SCL, board.SDA)
+    ads = ADS1115_mod.ADS1115(i2c)
     ads.gain = 1             # rango ±4.096 V (seguro para 3.3V)
-    canal_tds = AnalogIn(ads, ADS.P0)  # A0 / P0
+    canal_tds = AnalogIn(ads, 0)  # canal A0 del ADS1115
 except Exception as e:
     print("Aviso: no se ha podido inicializar el ADS1115:", e)
     ads = None
