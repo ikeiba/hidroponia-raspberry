@@ -59,7 +59,7 @@ configuracion = {
     "TEMP_MIN": 15.0,       # Por debajo: LED Temp ON
     "TEMP_MAX": 25.0,       # Por encima: LED Temp ON
     "TEMP_EMERGENCIA": 30.0,# Por encima: APAGADO TOTAL + BLINK
-    "TDS_MIN": 500,         # Por debajo: LED TDS ON + Servo
+    "TDS_MIN": 70,         # Por debajo: LED TDS ON + Servo
     "SERVO_COOLDOWN": 60.0, # Tiempo de espera del servo (1 minuto)
     "TIEMPO_LECTURA": 2.5   # Frecuencia de logs en consola
 }
@@ -281,7 +281,7 @@ def _hilo_maestro():
         # 5. Publicar en MQTT (si existe)
         if mqtt_publicador:
             mqtt_publicador.publicar_telemetria({
-                "temp": temp, "tds": tds, "bomba": True
+                "temperatura": temp, "tds": tds, "bomba": True
             })
 
         # Esperar el tiempo configurado para la siguiente lectura (2.5s)
