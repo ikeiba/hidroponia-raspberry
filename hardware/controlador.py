@@ -181,7 +181,7 @@ def _hilo_lectura_sensores():
                     "tds": tds_ppm if tds_ppm is not None else 0,
                     "voltaje": 0.0, # Si no tienes sensor de voltaje real, pon 0 o simúlalo
                     "bomba": estado["sistema_activo"],  # La bomba va con el sistema
-                    "led_accion": False, # Tendrías que leer el estado real si quieres
+                    "led_accion": (tds_ppm is not None and tds_ppm < TDS_MIN), # Tendrías que leer el estado real si quieres
                     "led_alerta": estado["led_rojo_on"]
                 }
                 mqtt_publicador.publicar_telemetria(estado_actual)

@@ -12,8 +12,8 @@ MQTT_TOPIC = "hidroponia/telemetria"
 # --- CONFIGURACIÓN INFLUXDB ---
 # Estos datos te los da InfluxDB cuando creas el 'Bucket'
 INFLUX_URL = "http://localhost:8086"
-INFLUX_TOKEN = "TU_TOKEN_LARGO_DE_INFLUXDB_AQUI" 
-INFLUX_ORG = "tu_organizacion"   # El nombre de organización que pusiste al instalar
+INFLUX_TOKEN = "Aq38n8SaWh7iGjRC8u9Peb0mmkwfxu-TWOqXWBZF0amtG04swNbuUxE6U-XL1CGGWt5sA2hjpQ4dSw_BrEPdAg==" 
+INFLUX_ORG = "proyecto_hidroponia"   # El nombre de organización que pusiste al instalar
 INFLUX_BUCKET = "hidroponia_db"  # El nombre del bucket donde guardarás los datos
 
 # --- INICIALIZACIÓN DE CLIENTE INFLUXDB ---
