@@ -58,7 +58,7 @@ configuracion = {
     "TEMP_MIN": 15.0,
     "TEMP_MAX": 25.0,
     "TEMP_EMERGENCIA": 30.0,
-    "TDS_MIN": 500,
+    "TDS_MIN": 70,
     "SERVO_COOLDOWN": 60.0,
     "TIEMPO_LECTURA": 2.5
 }
