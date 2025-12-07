@@ -98,6 +98,18 @@ def api_logs():
     # Convertimos el deque a lista para que sea serializable
     return jsonify(list(log_buffer))
 
+# --- NUEVA RUTA PARA EL BOTÓN WEB ---
+@app.route("/action/toggle", methods=["POST"])
+def action_toggle():
+    """
+    Simula pulsar el botón físico desde la web.
+    """
+    try:
+        controlador.toggle_sistema(origen="WEB")
+        return jsonify({"status": "ok", "mensaje": "Sistema conmutado"})
+    except Exception as e:
+        return jsonify({"status": "error", "mensaje": str(e)}), 500
+    
 
 if __name__ == "__main__":
     print("🚀 Iniciando Flask + Controlador...")

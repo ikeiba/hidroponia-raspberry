@@ -15,7 +15,6 @@
         var optionsTemp, optionsTDS;
 
         function iniciarDashboard() {
-            // 1. Inicializar objetos de Google Charts UNA VEZ
             dataTemp = google.visualization.arrayToDataTable([['Label', 'Value'], ['Temp °C', 0]]);
             dataTDS = google.visualization.arrayToDataTable([['Label', 'Value'], ['TDS ppm', 0]]);
 
@@ -36,40 +35,43 @@
             gaugeTemp.draw(dataTemp, optionsTemp);
             gaugeTDS.draw(dataTDS, optionsTDS);
 
-            // 2. Iniciar el bucle de actualización (cada 2 segundos)
-            actualizarDatos(); // Primera llamada inmediata
+            actualizarDatos(); 
             setInterval(actualizarDatos, 2000); 
         }
 
         async function actualizarDatos() {
             try {
-                // Pedimos el JSON al servidor
                 let response = await fetch('/api/estado');
                 let data = await response.json();
 
-                // --- Actualizar Gauges ---
-                // Google Charts necesita setValue(fila, columna, valor)
+                // Gauges
                 dataTemp.setValue(0, 1, data.temp || 0);
                 dataTDS.setValue(0, 1, data.tds || 0);
-                
                 gaugeTemp.draw(dataTemp, optionsTemp);
                 gaugeTDS.draw(dataTDS, optionsTDS);
 
-                // --- Actualizar Textos y Badges ---
-                
-                // Texto valores numéricos
+                // Textos
                 document.getElementById('val-temp').innerText = (data.temp ? data.temp + " °C" : "--");
                 document.getElementById('val-tds').innerText = (data.tds ? data.tds + " ppm" : "--");
                 document.getElementById('val-servo').innerText = data.servo_count || 0;
 
-                // Badge Bomba
+                // Estado Bomba y Botón Power
                 let badgeBomba = document.getElementById('badge-bomba');
+                let btnPower = document.getElementById('btn-power'); // Referencia al botón nuevo
+
                 if (data.bomba_on) {
                     badgeBomba.className = "badge badge--on";
                     badgeBomba.innerText = "Encendida";
+                    
+                    // Cambiar estilo del botón web
+                    btnPower.classList.add('btn-power--on');
+                    btnPower.innerText = "⏻ APAGAR SISTEMA";
                 } else {
                     badgeBomba.className = "badge badge--off";
                     badgeBomba.innerText = "Apagada";
+                    
+                    btnPower.classList.remove('btn-power--on');
+                    btnPower.innerText = "⏻ ENCENDER SISTEMA";
                 }
 
                 // LEDs
@@ -77,37 +79,86 @@
                 actualizarLed('led-rojo', data.led_rojo_on, "ALERTA");
 
             } catch (error) {
-                console.error("Error actualizando datos:", error);
+                console.error("Error actualizando:", error);
             }
         }
 
-        function actualizarLed(idElemento, estadoOn, textoOn) {
-            let container = document.getElementById(idElemento); // el div padre .led-status__item
-            let circulo = container.querySelector('.led-circle');
-            let badge = container.querySelector('.badge');
-
-            if (estadoOn) {
+        function actualizarLed(id, on, texto) {
+            let el = document.getElementById(id);
+            let circulo = el.querySelector('.led-circle');
+            let badge = el.querySelector('.badge');
+            if (on) {
                 circulo.classList.add('led-circle--on');
                 circulo.classList.remove('led-circle--off');
-                badge.className = (idElemento === 'led-rojo') ? "badge badge--alert" : "badge badge--on";
-                badge.innerText = textoOn;
+                badge.innerText = texto;
+                badge.className = (id==='led-rojo') ? "badge badge--alert" : "badge badge--on";
             } else {
                 circulo.classList.remove('led-circle--on');
                 circulo.classList.add('led-circle--off');
-                badge.className = "badge badge--off";
                 badge.innerText = "OFF";
+                badge.className = "badge badge--off";
+            }
+        }
+
+        // Función llamada al hacer click en el botón Power
+        async function toggleSistema() {
+            try {
+                await fetch('/action/toggle', { method: 'POST' });
+                // Forzamos actualización inmediata para que se note rápido
+                setTimeout(actualizarDatos, 100); 
+            } catch (e) {
+                alert("Error comunicando con servidor");
             }
         }
     </script>
+    <style>
+        /* Estilos nuevos para el Botón Power */
+        .power-container {
+            text-align: center; margin: 20px 0;
+        }
+        .btn-power {
+            background-color: #374151; /* Gris oscuro (Apagado) */
+            color: #9ca3af;
+            border: 2px solid #4b5563;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            display: inline-flex; align-items: center; gap: 10px;
+        }
+        .btn-power:hover { transform: scale(1.05); }
+        
+        .btn-power--on {
+            background-color: #dc2626; /* Rojo brillante para APAGAR */
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+        }
+        
+        .btn-nav {
+            background-color: #2563eb; color: white; padding: 8px 16px;
+            text-decoration: none; border-radius: 6px; font-weight: 600;
+        }
+        .btn-nav:hover { opacity: 0.9; }
+    </style>
 </head>
 <body>
     <div class="dashboard">
         <header class="dashboard__header">
             <h1>Sistema de Hidroponía</h1>
+            
+            <div class="power-container">
+                <button id="btn-power" class="btn-power" onclick="toggleSistema()">
+                    ⏻ ENCENDER SISTEMA
+                </button>
+            </div>
+
             <div style="margin: 15px 0; display:flex; justify-content:center; gap:10px;">
-                <a href="/graficas" class="btn-nav">📈 Ver Gráficas</a>
+                <a href="/graficas" class="btn-nav">📈 Gráficas</a>
                 <a href="/logs" class="btn-nav" style="background:#0f172a; border: 1px solid #334155;">📟 Logs</a>
-                <a href="/config" class="btn-nav" style="background:#4b5563;">⚙️ Configuración</a>
+                <a href="/config" class="btn-nav" style="background:#4b5563;">⚙️ Config</a>
             </div>
             <p class="dashboard__subtitle">Monitor en tiempo real (AJAX)</p>
         </header>
@@ -136,12 +187,12 @@
                 <div class="led-status">
                     <div class="led-status__item" id="led-verde">
                         <span class="led-circle led-circle--off"></span>
-                        <span>Verde</span>
+                        <span>Verde (TDS)</span>
                         <span class="badge badge--off">OFF</span>
                     </div>
                     <div class="led-status__item" id="led-rojo">
                         <span class="led-circle led-circle--red led-circle--off"></span>
-                        <span>Rojo</span>
+                        <span>Rojo (Temp)</span>
                         <span class="badge badge--off">OFF</span>
                     </div>
                 </div>
@@ -153,13 +204,5 @@
             </div>
         </section>
     </div>
-    
-    <style>
-        .btn-nav {
-            background-color: #2563eb; color: white; padding: 8px 16px;
-            text-decoration: none; border-radius: 6px; font-weight: 600;
-        }
-        .btn-nav:hover { opacity: 0.9; }
-    </style>
 </body>
 </html>
