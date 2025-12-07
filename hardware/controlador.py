@@ -112,6 +112,28 @@ def get_estado():
 
 
 # =========================
+# NUEVAS FUNCIONES DE CONFIG
+# =========================
+
+def get_config():
+    """Devuelve la configuración actual."""
+    return dict(configuracion) # Copia de seguridad
+
+def update_config(nueva_conf):
+    """Actualiza los valores de configuración."""
+    global configuracion
+    # Actualizamos solo las claves que nos lleguen
+    for clave, valor in nueva_conf.items():
+        if clave in configuracion:
+            # Intentamos convertir a float/int según el tipo original
+            tipo_orig = type(configuracion[clave])
+            try:
+                configuracion[clave] = tipo_orig(valor)
+            except ValueError:
+                pass # Si falla la conversión, ignoramos
+
+
+# =========================
 # LÓGICA DEL BOTÓN
 # =========================
 
