@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Histórico Hidroponía</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    
+    <style>
+        .chart-container {
+            position: relative; 
+            height: 60vh; 
+            width: 100%; 
+            background: #111827;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #1f2937;
+            color: white;
+            border: 1px solid #374151;
+            border-radius: 6px;
+        }
+        button:hover, button.active {
+            background: #2563eb; /* Azul */
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <header class="dashboard__header">
+            <h1>Histórico de Datos</h1>
+            <a href="/" style="color: #60a5fa;">&larr; Volver al Panel Principal</a>
+        </header>
+
+        <div class="controls">
+            <button onclick="cambiarSensor('temperatura')" id="btn-temp" class="active">Temperatura</button>
+            <button onclick="cambiarSensor('tds')" id="btn-tds">TDS (ppm)</button>
+        </div>
+
+        <div class="controls">
+            <button onclick="cambiarRango('1h')" id="btn-1h" class="active">1 Hora</button>
+            <button onclick="cambiarRango('24h')" id="btn-24h">24 Horas</button>
+            <button onclick="cambiarRango('7d')" id="btn-7d">7 Días</button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let currentSensor = 'temperatura';
+        let currentRango = '1h';
+        let myChart = null;
+
+        // Inicializar gráfica
+        async function cargarDatos() {
+            try {
+                const response = await fetch(`/api/historial?sensor=${currentSensor}&rango=${currentRango}`);
+                const data = await response.json();
+
+                // Formatear datos para Chart.js {x: tiempo, y: valor}
+                const parsedData = data.map(d => ({
+                    x: d.time, 
+                    y: d.value
+                }));
+
+                actualizarGrafica(parsedData);
+            } catch (error) {
+                console.error("Error cargando datos:", error);
+            }
+        }
+
+        function actualizarGrafica(datos) {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const label = currentSensor === 'temperatura' ? 'Temperatura (°C)' : 'TDS (ppm)';
+            const color = currentSensor === 'temperatura' ? '#f87171' : '#38bdf8'; // Rojo o Azul
+
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: label,
+                        data: datos,
+                        borderColor: color,
+                        backgroundColor: color + '33', // Transparencia
+                        borderWidth: 2,
+                        fill: true,
+                        pointRadius: 2,
+                        tension: 0.4 // Curva suave
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                tooltipFormat: 'dd MMM HH:mm',
+                                displayFormats: {
+                                    hour: 'HH:mm',
+                                    day: 'dd MMM'
+                                }
+                            },
+                            grid: { color: '#374151' },
+                            ticks: { color: '#9ca3af' }
+                        },
+                        y: {
+                            grid: { color: '#374151' },
+                            ticks: { color: '#9ca3af' }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: 'white' } }
+                    }
+                }
+            });
+        }
+
+        // Funciones de botones
+        function cambiarSensor(sensor) {
+            currentSensor = sensor;
+            // Estilos botones
+            document.querySelectorAll('button').forEach(b => b.classList.remove('active')); // Reset simple
+            document.getElementById('btn-' + (sensor === 'temperatura' ? 'temp' : 'tds')).classList.add('active');
+            cargarDatos();
+        }
+
+        function cambiarRango(rango) {
+            currentRango = rango;
+            cargarDatos();
+        }
+
+        // Carga inicial
+        cargarDatos();
+    </script>
+</body>
+</html>

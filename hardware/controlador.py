@@ -60,7 +60,7 @@ TIEMPO_LECTURA = 2.0     # segundos entre lecturas de sensores
 TEMP_MIN = 10.0          # debajo → alerta temperatura
 TEMP_MAX = 30.0          # encima → alerta temperatura
 
-TDS_MIN = 100.0          # por debajo → activar servo
+TDS_MIN = 70         # por debajo → activar servo
 TDS_ALERT = 400.0        # por encima → LED rojo encendido
 
 SERVO_COOLDOWN = 60.0    # segundos entre activaciones del servo
