@@ -38,7 +38,7 @@ led_rojo = LED(LED_ROJO_PIN)
 # FUNCIONES PARA EL SERVO
 
 # Ajusta estos ángulos a tu montaje físico
-ANGULO_CERRADO = 0
+ANGULO_CERRADO = -90
 ANGULO_ABIERTO = 90
 
 def mover_servo_angulo(angulo: float):

@@ -58,8 +58,8 @@ configuracion = {
     "TEMP_MIN": 15.0,
     "TEMP_MAX": 25.0,
     "TEMP_EMERGENCIA": 30.0,
-    "TDS_MIN": 500,         # Mínimo para dosificar (Servo)
-    "TDS_ALERT": 800,       # <--- NUEVO: Máximo para avisar (Led Rojo)
+    "TDS_MIN": 70,         # Mínimo para dosificar (Servo)
+    "TDS_ALERT": 400,       # <--- NUEVO: Máximo para avisar (Led Rojo)
     "SERVO_COOLDOWN": 60.0,
     "TIEMPO_LECTURA": 2.5
 }
