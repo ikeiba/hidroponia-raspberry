@@ -30,7 +30,7 @@ LED_ROJO_PIN = 24    # LED 2 (por ejemplo: alarma / error)
 servo = AngularServo( SERVO_PIN, min_angle=0, max_angle=180, min_pulse_width=0.0005, max_pulse_width=0.0024)
 
 # Bomba: muchos relés se activan con nivel BAJO → active_high=False
-bomba = OutputDevice( PUMP_PIN, active_high=False, initial_value=False)
+bomba = OutputDevice( PUMP_PIN, active_high=True, initial_value=False)
 
 led_verde = LED(LED_VERDE_PIN)
 led_rojo = LED(LED_ROJO_PIN)
@@ -39,7 +39,7 @@ led_rojo = LED(LED_ROJO_PIN)
 
 # Ajusta estos ángulos a tu montaje físico
 ANGULO_CERRADO = 0
-ANGULO_ABIERTO = 180
+ANGULO_ABIERTO = 90
 
 def mover_servo_angulo(angulo: float):
     """
