@@ -36,13 +36,16 @@ Este módulo no sabe nada de Flask. Flask solo usará get_estado()
 para mostrar los valores en la web.
 """
 
+# =========================
+# CONFIGURACIÓN
+# =========================
 # hardware/controlador.py
 import threading
 import time
+from datetime import datetime
 from gpiozero import Button
 from . import sensores, actuadores
 from data.logger_web import logger 
-from datetime import datetime # <--- 1. AÑADIR ESTE IMPORT
 
 try:
     from data import mqtt_publicador
@@ -58,8 +61,8 @@ configuracion = {
     "TEMP_MIN": 15.0,
     "TEMP_MAX": 25.0,
     "TEMP_EMERGENCIA": 30.0,
-    "TDS_MIN": 70,         # Mínimo -> Dosificar Sal
-    "TDS_ALERT": 400,       # Máximo -> Alerta contaminación
+    "TDS_MIN": 500,         # Mínimo -> Dosificar Sal
+    "TDS_ALERT": 800,       # Máximo -> EMERGENCIA (Parada crítica)
     "SERVO_COOLDOWN": 60.0,
     "TIEMPO_LECTURA": 2.5
 }
@@ -76,10 +79,9 @@ estado = {
     "led_rojo_on": False,
     "led_verde_on": False,
     "servo_count": 0,
-    # --- NUEVOS CAMPOS ---
+    "ultimo_servo_time": "--:--:--",
     "cpu_temp": 0.0,
-    "ram_usage": 0.0,
-    "ultimo_servo_time": "--:--:--" # <--- 2. NUEVO CAMPO
+    "ram_usage": 0.0
 }
 
 _ultima_activacion_servo = 0.0
@@ -126,7 +128,7 @@ def toggle_sistema(origen="WEB"):
             logger.info(f"[{origen}] Reseteando EMERGENCIA. Sistema en espera.")
             estado["modo_emergencia"] = False
             estado["sistema_activo"] = False
-            estado["bomba_on"] = False   # <--- CORRECCIÓN: Asegurar estado visual
+            estado["bomba_on"] = False
             
             actuadores.led_rojo_off()
             actuadores.led_verde_off()
@@ -139,14 +141,14 @@ def toggle_sistema(origen="WEB"):
     if nuevo_estado:
         logger.info(f"[{origen}] Sistema ACTIVADO. Iniciando...")
         actuadores.encender_bomba()
-        with _lock_estado: estado["bomba_on"] = True # <--- CORRECCIÓN: Feedback inmediato
+        with _lock_estado: estado["bomba_on"] = True
     else:
         logger.info(f"[{origen}] Sistema PAUSADO.")
         actuadores.apagar_bomba()
         actuadores.servo_cerrar()
         actuadores.led_rojo_off()
         actuadores.led_verde_off()
-        with _lock_estado: estado["bomba_on"] = False # <--- CORRECCIÓN CRÍTICA
+        with _lock_estado: estado["bomba_on"] = False
 
 # =========================
 # CALLBACK BOTÓN FÍSICO
@@ -163,7 +165,7 @@ def _callback_boton_fisico():
     toggle_sistema(origen="BOTÓN FÍSICO")
 
 def _hilo_boton():
-    time.sleep(2.0) # Espera inicial
+    time.sleep(2.0)
     boton.when_pressed = _callback_boton_fisico
     while not _stop_event.is_set():
         time.sleep(0.1)
@@ -182,62 +184,83 @@ def _hilo_maestro():
             activo = estado["sistema_activo"]
             emergencia = estado["modo_emergencia"]
 
-        # --- MODO EMERGENCIA ---
+        # -----------------------------------------------
+        # 1. MODO EMERGENCIA (Prioridad máxima: Parpadeo)
+        # -----------------------------------------------
         if emergencia:
             actuadores.apagar_bomba()
-            # Parpadeo de AMBOS LEDs en emergencia crítica
+            # Parpadeo de AMBOS LEDs
             actuadores.led_rojo_on(); actuadores.led_verde_on()
             time.sleep(0.5)
             actuadores.led_rojo_off(); actuadores.led_verde_off()
             time.sleep(0.5)
             continue
 
-        # --- SISTEMA PAUSADO ---
+        # ------------------------
+        # 2. SISTEMA PAUSADO
+        # ------------------------
         if not activo:
+            # Seguimos leyendo CPU/RAM aunque esté pausado para el dashboard
+            cpu_t = sensores.leer_cpu_temp()
+            ram_p = sensores.leer_ram_usage()
+            with _lock_estado:
+                 estado["cpu_temp"] = cpu_t
+                 estado["ram_usage"] = ram_p
             time.sleep(0.5)
             continue
 
-        # --- SISTEMA ACTIVO ---
+        # ------------------------
+        # 3. SISTEMA ACTIVO - LEER
+        # ------------------------
         
-        # 1. Leer Sensores
+        # Sensores de Agua
         temp = sensores.leer_temperatura()
         if temp is None: temp = 25.0
         
         tds = sensores.leer_tds_ppm()
         if tds is None: tds = 600
 
-        # >>> NUEVO: LEER SALUD DEL SISTEMA <<<
-        # Lo hacemos siempre, aunque el sistema esté pausado,
-        # porque queremos monitorizar la Raspberry siempre.
-        cpu_t = sensores.leer_cpu_temp()
-        ram_p = sensores.leer_ram_usage()
-
         voltaje = 0.0
         try: voltaje = sensores.leer_tds_voltage() or 0.0
         except: pass
+
+        # Sensores de Salud
+        cpu_t = sensores.leer_cpu_temp()
+        ram_p = sensores.leer_ram_usage()
 
         with _lock_estado:
             estado["temp"] = temp
             estado["tds"] = tds
             estado["bomba_on"] = True
-            # Estado Servidor (Siempre se actualiza)
             estado["cpu_temp"] = cpu_t
             estado["ram_usage"] = ram_p
 
-        logger.info(f"Estado -> Temp: {temp:.1f}ºC | TDS: {tds} ppm")
+        logger.info(f"Estado -> Temp: {temp:.2f}ºC | TDS: {tds} ppm")
 
-        # 2. Chequeo Emergencia (> 30ºC)
-        limit_emergencia = configuracion.get("TEMP_EMERGENCIA", 30.0)
-        if temp >= limit_emergencia:
-            logger.warning(f"!!! EMERGENCIA: {temp}ºC !!!")
+        # -----------------------------------------------------
+        # A. CHEQUEO CRÍTICO (EMERGENCIA)
+        # -----------------------------------------------------
+        limit_emergencia_temp = configuracion.get("TEMP_EMERGENCIA", 30.0)
+        limit_emergencia_tds  = configuracion.get("TDS_ALERT", 800) # Usamos Alerta como MAX absoluto
+        
+        fail_temp = (temp >= limit_emergencia_temp)
+        fail_tds  = (tds >= limit_emergencia_tds)
+
+        if fail_temp or fail_tds:
+            if fail_temp:
+                logger.warning(f"!!! EMERGENCIA TÉRMICA: {temp}ºC >= {limit_emergencia_temp}ºC !!!")
+            if fail_tds:
+                logger.warning(f"!!! EMERGENCIA QUÍMICA (TDS): {tds} ppm >= {limit_emergencia_tds} ppm !!!")
+            
             _set_emergencia(True)
-            continue
+            continue # Saltamos directo al inicio del bucle (Modo Emergencia)
 
-        # ==========================================
-        # NUEVA LÓGICA DE LEDS (SEPARADA POR TIPO)
-        # ==========================================
-
-        # --- ROJO: Solo ALERTAS DE TEMPERATURA ---
+        # -----------------------------------------------------
+        # B. LÓGICA LED ROJO (Aviso Temperatura)
+        # -----------------------------------------------------
+        # Nota: El TDS Alto ya no entra aquí porque provoca Emergencia arriba.
+        # El LED rojo fijo queda solo para avisar de "Temperatura Rara" (Warning)
+        
         t_min, t_max = configuracion["TEMP_MIN"], configuracion["TEMP_MAX"]
         
         if temp < t_min or temp > t_max:
@@ -247,49 +270,44 @@ def _hilo_maestro():
             actuadores.led_rojo_off()
             led_rojo_state = False
 
-        # --- VERDE: Solo ALERTAS DE TDS (Bajo o Alto) ---
+        # -----------------------------------------------------
+        # C. LÓGICA LED VERDE + SERVO (Dosificación)
+        # -----------------------------------------------------
         tds_min = configuracion["TDS_MIN"]
-        tds_alert_high = configuracion.get("TDS_ALERT", 800)
         led_verde_state = False
-
-        # Caso A: TDS Muy Alto (Alerta)
-        if tds > tds_alert_high:
-            actuadores.led_verde_on()
-            led_verde_state = True
-            logger.warning(f"Alerta TDS Alto: {tds} > {tds_alert_high}")
-
-        # Caso B: TDS Bajo (Dosificación)
-        elif tds < tds_min:
+        
+        if tds < tds_min:
+            # TDS BAJO -> Dosificar
             actuadores.led_verde_on()
             led_verde_state = True
             
-            # Lógica Servo
+            # Servo
             ahora = time.time()
             if ahora - _ultima_activacion_servo > configuracion["SERVO_COOLDOWN"]:
                 logger.info("[ACCIÓN] TDS Bajo -> Activando Servo.")
                 actuadores.servo_abrir()
                 time.sleep(1.0)
                 actuadores.servo_cerrar()
-
-                # <--- 3. MODIFICAR AQUÍ PARA GUARDAR LA HORA --->
+                
                 hora_actual = datetime.now().strftime("%H:%M:%S")
-
                 with _lock_estado: 
                     estado["servo_count"] += 1
-                    estado["ultimo_servo_time"] = hora_actual # Guardamos la hora
+                    estado["ultimo_servo_time"] = hora_actual
+                
                 _ultima_activacion_servo = time.time()
-        
         else:
-            # TDS Normal
+            # TDS NORMAL (Entre TDS_MIN y TDS_ALERT)
             actuadores.led_verde_off()
             led_verde_state = False
 
-        # Actualizamos estado para la web
+        # Actualizar estado LEDs visual
         with _lock_estado: 
             estado["led_rojo_on"] = led_rojo_state
             estado["led_verde_on"] = led_verde_state
 
+        # ------------------------
         # 4. PUBLICAR MQTT
+        # ------------------------
         if mqtt_publicador:
             datos_mqtt = {
                 "temperatura": float(temp),
@@ -298,9 +316,8 @@ def _hilo_maestro():
                 "bomba": True,
                 "led_accion": led_verde_state,
                 "led_alerta": led_rojo_state,
-                # --- NUEVOS DATOS PARA GUARDAR ---
-                "cpu_temp": float(estado["cpu_temp"]),
-                "ram_usage": float(estado["ram_usage"])
+                "cpu_temp": float(cpu_t),
+                "ram_usage": float(ram_p)
             }
             mqtt_publicador.publicar_telemetria(datos_mqtt)
 
