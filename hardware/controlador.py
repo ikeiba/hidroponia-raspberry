@@ -42,6 +42,7 @@ import time
 from gpiozero import Button
 from . import sensores, actuadores
 from data.logger_web import logger 
+from datetime import datetime # <--- 1. AÑADIR ESTE IMPORT
 
 try:
     from data import mqtt_publicador
@@ -77,7 +78,8 @@ estado = {
     "servo_count": 0,
     # --- NUEVOS CAMPOS ---
     "cpu_temp": 0.0,
-    "ram_usage": 0.0
+    "ram_usage": 0.0,
+    "ultimo_servo_time": "--:--:--" # <--- 2. NUEVO CAMPO
 }
 
 _ultima_activacion_servo = 0.0
@@ -268,7 +270,13 @@ def _hilo_maestro():
                 actuadores.servo_abrir()
                 time.sleep(1.0)
                 actuadores.servo_cerrar()
-                with _lock_estado: estado["servo_count"] += 1
+
+                # <--- 3. MODIFICAR AQUÍ PARA GUARDAR LA HORA --->
+                hora_actual = datetime.now().strftime("%H:%M:%S")
+
+                with _lock_estado: 
+                    estado["servo_count"] += 1
+                    estado["ultimo_servo_time"] = hora_actual # Guardamos la hora
                 _ultima_activacion_servo = time.time()
         
         else:

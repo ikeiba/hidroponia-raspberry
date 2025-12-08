@@ -47,13 +47,24 @@
                 // Gauges
                 dataTemp.setValue(0, 1, data.temp || 0);
                 dataTDS.setValue(0, 1, data.tds || 0);
+                let tempFormatted = data.temp ? data.temp.toFixed(2) : "0.00";
+                let tdsFormatted = data.tds ? data.tds.toFixed(2) : "0.00";
+
+                // --- Actualizar Gauges ---
+                // Google Charts necesita números, no strings, así que usamos parseFloat()
+                dataTemp.setValue(0, 1, parseFloat(tempFormatted));
+                dataTDS.setValue(0, 1, parseFloat(tdsFormatted));
+
                 gaugeTemp.draw(dataTemp, optionsTemp);
                 gaugeTDS.draw(dataTDS, optionsTDS);
 
-                // Textos
-                document.getElementById('val-temp').innerText = (data.temp ? data.temp + " °C" : "--");
-                document.getElementById('val-tds').innerText = (data.tds ? data.tds + " ppm" : "--");
+                // Texto valores numéricos (Aquí usamos los strings formateados)
+                document.getElementById('val-temp').innerText = tempFormatted + " °C";
+                document.getElementById('val-tds').innerText = tdsFormatted + " ppm";
+                
+                // Servo: Contador y Hora
                 document.getElementById('val-servo').innerText = data.servo_count || 0;
+                document.getElementById('time-servo').innerText = data.ultimo_servo_time || "--:--:--";
 
                 // Estado Bomba y Botón Power
                 let badgeBomba = document.getElementById('badge-bomba');
@@ -255,7 +266,9 @@
             <div class="card">
                 <h2>Servo</h2>
                 <p>Activaciones: <strong id="val-servo">0</strong></p>
-                
+                <p style="font-size: 0.85rem; color: #9ca3af; margin-top: 5px;">
+                    Última vez: <span id="time-servo" style="color: #e5e7eb;">--:--:--</span>
+                </p>
             </div>
                         <div class="card">
                 <h2>Salud Raspberry Pi</h2>
