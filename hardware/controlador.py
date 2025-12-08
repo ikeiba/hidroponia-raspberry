@@ -217,7 +217,7 @@ def _hilo_maestro():
         temp = sensores.leer_temperatura()
         if temp is None: temp = 25.0
         
-        tds = sensores.leer_tds_ppm()
+        tds = sensores.leer_tds_ppm(temperatura=temp)
         if tds is None: tds = 600
 
         voltaje = 0.0

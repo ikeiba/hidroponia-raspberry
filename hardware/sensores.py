@@ -76,45 +76,37 @@ K_TDS = 500.0    # factor de conversión a ppm aproximado (placeholder)
 
 
 def leer_tds_voltage():
-    """
-    Lee el voltaje del canal TDS (en V).
-    Devuelve:
-        float → voltios
-        None  → si hay error o no hay ADS
-    """
-    if canal_tds is None:
-        return None
-
+    """ Lee voltaje puro del sensor TDS. """
+    if canal_tds is None: return None
     try:
         return float(canal_tds.voltage)
-    except Exception as e:
-        print("Error leyendo TDS (voltaje):", e)
+    except Exception:
         return None
 
 
-def leer_tds_ppm():
+def leer_tds_ppm(temperatura=25.0):
     """
-    Convierte el voltaje leído a una estimación de TDS (ppm).
-
-    IMPORTANTE:
-        - Esta fórmula es solo un EJEMPLO.
-        - Necesitáis calibrar con soluciones conocidas para obtener
-          una relación voltaje → ppm adecuada.
+    Calcula TDS (ppm) usando voltaje y compensación de temperatura.
+    Fórmula polinómica ajustada.
     """
     v = leer_tds_voltage()
-    if v is None:
-        return None
+    if v is None: return None
 
     try:
-        # Normalización a 0–1 respecto a VREF
-        ratio = max(0.0, min(v / VREF, 1.0))
-        # Conversión simplificada a ppm (ajustar K_TDS con calibración)
-        ppm = ratio * K_TDS
-        return float(ppm)
-    except Exception as e:
-        print("Error calculando TDS (ppm):", e)
-        return None
+        # 1. Compensación de Temperatura
+        # El coeficiente ajusta el voltaje a lo que sería a 25ºC
+        coeficiente_compensacion = 1.0 + 0.02 * (temperatura - 25.0)
+        voltaje_compensado = v / coeficiente_compensacion
 
+        # 2. Fórmula Polinómica (TDS)
+        tds_value = (133.42 * voltaje_compensado**3 -
+                     255.86 * voltaje_compensado**2 +
+                     857.39 * voltaje_compensado) * 0.5
+        
+        return int(tds_value)
+    except Exception as e:
+        print(f"Error calculando TDS: {e}")
+        return None
 
 # NIVEL DE AGUA (PLACEHOLDER) en proceso de implementación
 
