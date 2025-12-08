@@ -19,22 +19,38 @@ app = Flask(
 
 @app.route("/")
 def index():
-    # ... (Tu código existente del index se mantiene igual) ...
-    # Solo asegúrate de añadir un enlace en index.html para ir a /graficas
+    # 1. Obtenemos el ESTADO (sensores actuales)
     try:
         estado = controlador.get_estado()
     except Exception:
         estado = {}
-    
     if not isinstance(estado, dict): estado = {}
 
+    # 2. Obtenemos la CONFIGURACIÓN (límites)
+    try:
+        conf = controlador.get_config()
+    except Exception:
+        conf = {}
+
+    # 3. Preparamos el contexto mezclando ambos
     contexto = {
+        # Datos en tiempo real
         "temp":         estado.get("temp"),
         "tds":          estado.get("tds"),
         "bomba_on":     estado.get("bomba_on", False),
         "led_rojo_on":  estado.get("led_rojo_on", False),
         "led_verde_on": estado.get("led_verde_on", False),
         "servo_count":  estado.get("servo_count", 0),
+        "ultimo_servo_time": estado.get("ultimo_servo_time", "--:--:--"),
+        "cpu_temp":     estado.get("cpu_temp", 0),
+        "ram_usage":    estado.get("ram_usage", 0),
+        
+        # Datos de configuración (límites)
+        "CFG_TEMP_MIN": conf.get("TEMP_MIN", 15),
+        "CFG_TEMP_MAX": conf.get("TEMP_MAX", 25),
+        "CFG_TEMP_EMG": conf.get("TEMP_EMERGENCIA", 30),
+        "CFG_TDS_MIN":  conf.get("TDS_MIN", 500),
+        "CFG_TDS_ALERT":conf.get("TDS_ALERT", 800)
     }
     return render_template("index.html", **contexto)
 

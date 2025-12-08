@@ -15,17 +15,42 @@
         var optionsTemp, optionsTDS;
 
         function iniciarDashboard() {
+            // Inicializamos datos (igual que antes)
             dataTemp = google.visualization.arrayToDataTable([['Label', 'Value'], ['Temp °C', 0]]);
             dataTDS = google.visualization.arrayToDataTable([['Label', 'Value'], ['TDS ppm', 0]]);
 
+            // --- LÓGICA DE COLORES DINÁMICA ---
+            
+            // 1. TEMPERATURA
+            // Blanco: 0 a TEMP_MIN (Implícito)
+            // Verde: TEMP_MIN a TEMP_MAX
+            // Naranja (Yellow): TEMP_MAX a TEMP_EMERGENCIA
+            // Rojo: TEMP_EMERGENCIA a 40 (Final)
             optionsTemp = {
-                width: 300, height: 300, min: 0, max: 40,
-                greenFrom: 10, greenTo: 30, yellowFrom: 30, yellowTo: 35, redFrom: 35, redTo: 40,
+                width: 300, height: 300, 
+                min: 0, max: 40,
+                greenFrom: {{ CFG_TEMP_MIN }}, greenTo: {{ CFG_TEMP_MAX }}, 
+                yellowFrom: {{ CFG_TEMP_MAX }}, yellowTo: {{ CFG_TEMP_EMG }}, 
+                redFrom: {{ CFG_TEMP_EMG }}, redTo: 40,
                 minorTicks: 5
             };
+
+            // 2. TDS (Nutrientes)
+            // Calculamos el umbral naranja (-10% del máximo de alerta)
+            // Ejemplo: Si Alerta es 800 -> Naranja empieza en 720.
+            var tdsAlert = {{ CFG_TDS_ALERT }};
+            var tdsOrangeStart = tdsAlert * 0.9; 
+
+            // Blanco: 0 a TDS_MIN (Implícito)
+            // Verde: TDS_MIN a tdsOrangeStart
+            // Naranja: tdsOrangeStart a TDS_ALERT
+            // Rojo: TDS_ALERT a 1000 (Final)
             optionsTDS = {
-                width: 300, height: 300, min: 0, max: 800,
-                greenFrom: 0, greenTo: 300, yellowFrom: 300, yellowTo: 400, redFrom: 400, redTo: 800,
+                width: 300, height: 300, 
+                min: 0, max: 1000, // He subido un poco el max para ver mejor la zona roja
+                greenFrom: {{ CFG_TDS_MIN }}, greenTo: tdsOrangeStart, 
+                yellowFrom: tdsOrangeStart, yellowTo: tdsAlert, 
+                redFrom: tdsAlert, redTo: 1000,
                 minorTicks: 5
             };
 
