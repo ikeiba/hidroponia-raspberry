@@ -52,6 +52,12 @@
             <button onclick="cambiarRango('24h')" id="btn-24h">24 Horas</button>
             <button onclick="cambiarRango('7d')" id="btn-7d">7 Días</button>
         </div>
+        
+        <div class="controls" style="margin-top: 20px; border-top: 1px solid #374151; padding-top: 20px;">
+            <button onclick="descargarCSV()" style="background-color: #059669; border-color: #10b981;">
+                📥 Descargar Excel/CSV
+            </button>
+        </div>
 
         <div class="chart-container">
             <canvas id="myChart"></canvas>
@@ -144,6 +150,13 @@
         function cambiarRango(rango) {
             currentRango = rango;
             cargarDatos();
+        }
+
+        // NUEVA FUNCIÓN
+        function descargarCSV() {
+            // Simplemente redirigimos a la ruta de Flask pasando los parámetros actuales
+            const url = `/exportar_csv?sensor=${currentSensor}&rango=${currentRango}`;
+            window.location.href = url;
         }
 
         // Carga inicial

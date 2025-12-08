@@ -1,9 +1,11 @@
 # app.py (Versión actualizada)
 import os
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, redirect, url_for, make_response
 from hardware import controlador
 from data import influx_reader  # <--- IMPORTAR EL NUEVO MODULO
 from data.logger_web import logger, log_buffer # Importamos la lista de memoria
+import csv
+import io
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -109,7 +111,36 @@ def action_toggle():
         return jsonify({"status": "ok", "mensaje": "Sistema conmutado"})
     except Exception as e:
         return jsonify({"status": "error", "mensaje": str(e)}), 500
+
+# --- NUEVA RUTA PARA CSV ---
+@app.route("/exportar_csv")
+def exportar_csv():
+    """
+    Genera y descarga un archivo CSV con los datos actuales.
+    Usa los mismos parámetros que la gráfica (sensor y rango).
+    """
+    sensor = request.args.get("sensor", "temperatura")
+    rango = request.args.get("rango", "24h")
     
+    # 1. Obtenemos los datos de InfluxDB (Reutilizamos tu función existente)
+    datos = influx_reader.obtener_historial(sensor, rango)
+    
+    # 2. Creamos el CSV en memoria
+    si = io.StringIO()
+    writer = csv.writer(si)
+    
+    # Cabecera
+    writer.writerow(["Fecha (UTC)", f"Valor ({sensor})"])
+    
+    # Datos
+    for fila in datos:
+        writer.writerow([fila["time"], fila["value"]])
+    
+    # 3. Preparamos la respuesta como archivo descargable
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename={sensor}_{rango}.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
 
 if __name__ == "__main__":
     print("🚀 Iniciando Flask + Controlador...")
