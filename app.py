@@ -89,18 +89,48 @@ def api_estado():
 # --- CONFIGURACIÓN ---
 @app.route("/config", methods=["GET", "POST"])
 def config():
-    if request.method == "POST":
-        nueva_conf = {
-            "TEMP_MIN": request.form.get("temp_min"),
-            "TEMP_MAX": request.form.get("temp_max"),
-            "TDS_MIN": request.form.get("tds_min"),
-            "TDS_ALERT": request.form.get("tds_alert"),
-            "SERVO_COOLDOWN": request.form.get("servo_cd"),
-            "TIEMPO_LECTURA": request.form.get("reading_time"), # <--- NUEVO CAMPO
-        }
-        controlador.update_config(nueva_conf)
-        return redirect(url_for('config'))
+    error_msg = None # Variable para mensajes de error
 
+    if request.method == "POST":
+        try:
+            # 1. Recogemos y convertimos los datos para poder compararlos
+            t_min = float(request.form.get("temp_min"))
+            t_max = float(request.form.get("temp_max"))
+            tds_min = int(request.form.get("tds_min"))
+            tds_alert = int(request.form.get("tds_alert"))
+            
+            # 2. Validaciones Lógicas (Reglas de Negocio)
+            errores = []
+            
+            if t_min >= t_max:
+                errores.append(f"Error Temp: Mínima ({t_min}) >= Máxima ({t_max})")
+            
+            if tds_min >= tds_alert:
+                errores.append(f"Error TDS: Mínimo ({tds_min}) >= Alerta ({tds_alert})")
+            
+            # 3. Decisión
+            if errores:
+                # Si hay errores, NO guardamos. Mostramos la web con el aviso.
+                cfg_actual = controlador.get_config()
+                return render_template("config.html", **cfg_actual, error_msg=" | ".join(errores))
+
+            # 4. Si todo está OK, guardamos
+            nueva_conf = {
+                "TEMP_MIN": t_min,
+                "TEMP_MAX": t_max,
+                "TDS_MIN": tds_min,
+                "TDS_ALERT": tds_alert,
+                "SERVO_COOLDOWN": request.form.get("servo_cd"),
+                "TIEMPO_LECTURA": request.form.get("reading_time"),
+            }
+            controlador.update_config(nueva_conf)
+            return redirect(url_for('config'))
+
+        except ValueError:
+            cfg_actual = controlador.get_config()
+            return render_template("config.html", **cfg_actual, error_msg="Error: Introduce valores numéricos válidos.")
+
+    # Petición GET normal
     cfg_actual = controlador.get_config()
     return render_template("config.html", **cfg_actual)
 
