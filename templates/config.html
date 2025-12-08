@@ -49,17 +49,17 @@
                 <h2 style="border-bottom: 1px solid #374151; padding-bottom: 10px;">Umbrales de Alerta</h2>
                 
                 <div class="form-group">
-                    <label>Temperatura Mínima (°C) - Alerta Frío</label>
+                    <label>Temperatura Mínima (°C) - Alerta Frío - (Led Rojo)</label>
                     <input type="number" step="0.1" name="temp_min" id="temp_min" value="{{ TEMP_MIN }}" required>
                 </div>
 
                 <div class="form-group">
-                    <label>Temperatura Máxima (°C) - Alerta Calor</label>
+                    <label>Temperatura Máxima (°C) - Alerta Calor - (Led Rojo)</label>
                     <input type="number" step="0.1" name="temp_max" id="temp_max" value="{{ TEMP_MAX }}" required>
                 </div>
 
                 <div class="form-group">
-                    <label>TDS Alerta (ppm) - Led Rojo (Máximo)</label>
+                    <label>TDS Alerta (ppm) - Led Rojo - (Led Verde)</label>
                     <input type="number" step="1" name="tds_alert" id="tds_alert" value="{{ TDS_ALERT }}" required>
                 </div>
 
@@ -71,7 +71,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label>TDS Mínimo (ppm) - Disparar Servo (Mínimo)</label>
+                    <label>TDS Mínimo (ppm) - Disparar Servo - (Led Verde)</label>
                     <input type="number" step="1" name="tds_min" id="tds_min" value="{{ TDS_MIN }}" required>
                 </div>
 
