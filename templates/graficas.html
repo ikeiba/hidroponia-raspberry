@@ -21,6 +21,7 @@
             justify-content: center;
             gap: 10px;
             margin-bottom: 20px;
+            flex-wrap: wrap; /* Para que se adapte a móviles */
         }
         button {
             padding: 10px 20px;
@@ -29,10 +30,21 @@
             color: white;
             border: 1px solid #374151;
             border-radius: 6px;
+            font-weight: 500;
+            transition: all 0.2s;
         }
-        button:hover, button.active {
-            background: #2563eb; /* Azul */
+        button:hover {
+            background: #374151;
         }
+        button.active {
+            background: #2563eb; /* Azul base */
+            border-color: #3b82f6;
+            box-shadow: 0 0 10px rgba(37, 99, 235, 0.3);
+        }
+        
+        /* Colores específicos para botones activos (Opcional, detalle estético) */
+        button#btn-cpu.active { background: #d97706; border-color: #f59e0b; } /* Ambar */
+        button#btn-ram.active { background: #7c3aed; border-color: #8b5cf6; } /* Violeta */
     </style>
 </head>
 <body>
@@ -42,25 +54,27 @@
             <a href="/" style="color: #60a5fa;">&larr; Volver al Panel Principal</a>
         </header>
 
-        <div class="controls">
-            <button onclick="cambiarSensor('temperatura')" id="btn-temp" class="active">Temperatura</button>
-            <button onclick="cambiarSensor('tds')" id="btn-tds">TDS (ppm)</button>
+        <div class="controls" id="sensor-controls">
+            <button onclick="cambiarSensor('temperatura')" id="btn-temp" class="active">💧 Agua Temp</button>
+            <button onclick="cambiarSensor('tds')" id="btn-tds">🧂 TDS (ppm)</button>
+            <button onclick="cambiarSensor('cpu_temp')" id="btn-cpu">🔥 CPU Temp</button>
+            <button onclick="cambiarSensor('ram_usage')" id="btn-ram">🧠 RAM %</button>
         </div>
 
-        <div class="controls">
+        <div class="controls" id="range-controls">
             <button onclick="cambiarRango('1h')" id="btn-1h" class="active">1 Hora</button>
             <button onclick="cambiarRango('24h')" id="btn-24h">24 Horas</button>
             <button onclick="cambiarRango('7d')" id="btn-7d">7 Días</button>
         </div>
-        
+
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+
         <div class="controls" style="margin-top: 20px; border-top: 1px solid #374151; padding-top: 20px;">
             <button onclick="descargarCSV()" style="background-color: #059669; border-color: #10b981;">
                 📥 Descargar Excel/CSV
             </button>
-        </div>
-
-        <div class="chart-container">
-            <canvas id="myChart"></canvas>
         </div>
     </div>
 
@@ -72,10 +86,11 @@
         // Inicializar gráfica
         async function cargarDatos() {
             try {
+                // Llamamos a la API con el sensor seleccionado (cpu_temp, ram_usage, etc.)
                 const response = await fetch(`/api/historial?sensor=${currentSensor}&rango=${currentRango}`);
                 const data = await response.json();
 
-                // Formatear datos para Chart.js {x: tiempo, y: valor}
+                // Formatear datos para Chart.js
                 const parsedData = data.map(d => ({
                     x: d.time, 
                     y: d.value
@@ -89,8 +104,32 @@
 
         function actualizarGrafica(datos) {
             const ctx = document.getElementById('myChart').getContext('2d');
-            const label = currentSensor === 'temperatura' ? 'Temperatura (°C)' : 'TDS (ppm)';
-            const color = currentSensor === 'temperatura' ? '#f87171' : '#38bdf8'; // Rojo o Azul
+            
+            // Configuración de colores y etiquetas según el sensor
+            let label = '';
+            let color = '';
+
+            switch (currentSensor) {
+                case 'temperatura':
+                    label = 'Temperatura Agua (°C)';
+                    color = '#f87171'; // Rojo suave
+                    break;
+                case 'tds':
+                    label = 'TDS - Nutrientes (ppm)';
+                    color = '#38bdf8'; // Azul cielo
+                    break;
+                case 'cpu_temp':
+                    label = 'Temperatura CPU RaspPi (°C)';
+                    color = '#fbbf24'; // Ámbar / Naranja
+                    break;
+                case 'ram_usage':
+                    label = 'Uso de Memoria RAM (%)';
+                    color = '#a78bfa'; // Violeta
+                    break;
+                default:
+                    label = 'Valor';
+                    color = '#9ca3af';
+            }
 
             if (myChart) {
                 myChart.destroy();
@@ -103,16 +142,21 @@
                         label: label,
                         data: datos,
                         borderColor: color,
-                        backgroundColor: color + '33', // Transparencia
+                        backgroundColor: color + '33', // Transparencia hex (aprox 20%)
                         borderWidth: 2,
                         fill: true,
-                        pointRadius: 2,
-                        tension: 0.4 // Curva suave
+                        pointRadius: 0, // Sin puntos para que se vea más limpio con muchos datos
+                        pointHoverRadius: 4,
+                        tension: 0.4 // Curva suave (Interpolación)
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
                     scales: {
                         x: {
                             type: 'time',
@@ -128,11 +172,19 @@
                         },
                         y: {
                             grid: { color: '#374151' },
-                            ticks: { color: '#9ca3af' }
+                            ticks: { color: '#9ca3af' },
+                            suggestedMin: 0 // Para que las gráficas empiecen bien
                         }
                     },
                     plugins: {
-                        legend: { labels: { color: 'white' } }
+                        legend: { labels: { color: 'white' } },
+                        tooltip: {
+                            backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#374151',
+                            borderWidth: 1
+                        }
                     }
                 }
             });
@@ -141,20 +193,33 @@
         // Funciones de botones
         function cambiarSensor(sensor) {
             currentSensor = sensor;
-            // Estilos botones
-            document.querySelectorAll('button').forEach(b => b.classList.remove('active')); // Reset simple
-            document.getElementById('btn-' + (sensor === 'temperatura' ? 'temp' : 'tds')).classList.add('active');
+            
+            // Gestión visual de botones activos
+            // 1. Quitamos 'active' de todos los botones del grupo de sensores
+            document.querySelectorAll('#sensor-controls button').forEach(b => b.classList.remove('active'));
+            
+            // 2. Buscamos el botón correcto y lo activamos
+            let btnId = '';
+            if (sensor === 'temperatura') btnId = 'btn-temp';
+            else if (sensor === 'tds') btnId = 'btn-tds';
+            else if (sensor === 'cpu_temp') btnId = 'btn-cpu';
+            else if (sensor === 'ram_usage') btnId = 'btn-ram';
+            
+            if (btnId) document.getElementById(btnId).classList.add('active');
+
             cargarDatos();
         }
 
         function cambiarRango(rango) {
             currentRango = rango;
+            // Gestión visual de botones de rango
+            document.querySelectorAll('#range-controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + rango).classList.add('active');
+            
             cargarDatos();
         }
 
-        // NUEVA FUNCIÓN
         function descargarCSV() {
-            // Simplemente redirigimos a la ruta de Flask pasando los parámetros actuales
             const url = `/exportar_csv?sensor=${currentSensor}&rango=${currentRango}`;
             window.location.href = url;
         }
