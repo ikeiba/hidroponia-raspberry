@@ -77,6 +77,9 @@
                 // LEDs
                 actualizarLed('led-verde', data.led_verde_on, "ON");
                 actualizarLed('led-rojo', data.led_rojo_on, "ALERTA");
+                // >>> NUEVO: ACTUALIZAR BARRAS DE SISTEMA <<<
+                actualizarBarra('bar-cpu', 'txt-cpu', data.cpu_temp, 80); // Max 80ºC
+                actualizarBarra('bar-ram', 'txt-ram', data.ram_usage, 100); // Max 100%
 
             } catch (error) {
                 console.error("Error actualizando:", error);
@@ -97,6 +100,32 @@
                 circulo.classList.add('led-circle--off');
                 badge.innerText = "OFF";
                 badge.className = "badge badge--off";
+            }
+        }
+
+        function actualizarBarra(idBarra, idTexto, valor, maximo) {
+            let porcentaje = (valor / maximo) * 100;
+            if (porcentaje > 100) porcentaje = 100;
+            
+            let elBarra = document.getElementById(idBarra);
+            let elTexto = document.getElementById(idTexto);
+            
+            // Actualizar ancho
+            elBarra.style.width = porcentaje + "%";
+            
+            // Actualizar Texto
+            let unit = (idBarra === 'bar-cpu') ? "°C" : "%";
+            elTexto.innerText = valor + unit;
+
+            // Cambiar color según severidad
+            // Si pasa del 80% del máximo -> Rojo
+            // Si pasa del 60% del máximo -> Amarillo
+            if (valor > maximo * 0.8) {
+                elBarra.style.backgroundColor = "#ef4444"; // Rojo
+            } else if (valor > maximo * 0.6) {
+                elBarra.style.backgroundColor = "#eab308"; // Amarillo
+            } else {
+                elBarra.style.backgroundColor = "#22c55e"; // Verde
             }
         }
 
@@ -142,6 +171,31 @@
             text-decoration: none; border-radius: 6px; font-weight: 600;
         }
         .btn-nav:hover { opacity: 0.9; }
+
+        /* Estilos para las barras de progreso */
+        .progress-container {
+            background-color: #374151;
+            border-radius: 999px;
+            height: 12px;
+            width: 100%;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #22c55e; /* Verde por defecto */
+            width: 0%;
+            transition: width 0.5s ease, background-color 0.5s ease;
+        }
+        .system-metric {
+            margin-bottom: 15px;
+        }
+        .metric-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #d1d5db;
+        }
     </style>
 </head>
 <body>
@@ -174,6 +228,34 @@
                 <div id="gauge_tds" class="gauge"></div>
                 <p class="card__value" id="val-tds">--</p>
             </div>
+        </section>
+        
+        <section class="dashboard__section dashboard__section--status">
+            
+            <div class="card">
+                <h2>Salud Raspberry Pi</h2>
+                
+                <div class="system-metric">
+                    <div class="metric-label">
+                        <span>CPU Temp</span>
+                        <strong id="txt-cpu">0°C</strong>
+                    </div>
+                    <div class="progress-container">
+                        <div id="bar-cpu" class="progress-bar"></div>
+                    </div>
+                </div>
+
+                <div class="system-metric">
+                    <div class="metric-label">
+                        <span>RAM Uso</span>
+                        <strong id="txt-ram">0%</strong>
+                    </div>
+                    <div class="progress-container">
+                        <div id="bar-ram" class="progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+
         </section>
 
         <section class="dashboard__section dashboard__section--status">

@@ -25,6 +25,8 @@ import adafruit_ads1x15.ads1115 as ADS1115_mod
 import adafruit_ads1x15.ads1x15 as ADS_CFG
 from adafruit_ads1x15.analog_in import AnalogIn
 
+import psutil
+from gpiozero import CPUTemperature
 
 # TEMPERATURA (DS18B20)
 
@@ -129,3 +131,29 @@ def leer_nivel_agua():
     """
     return None
 
+# ================================
+# NUEVO: SENSORES DE SISTEMA (RPi)
+# ================================
+
+def leer_cpu_temp():
+    """
+    Lee la temperatura de la CPU de la Raspberry Pi.
+    Retorna float (grados C) o 0.0 si falla.
+    """
+    try:
+        cpu = CPUTemperature()
+        return round(cpu.temperature, 1)
+    except Exception:
+        return 0.0
+
+def leer_ram_usage():
+    """
+    Lee el porcentaje de uso de la memoria RAM.
+    Retorna float (0-100).
+    """
+    try:
+        # psutil.virtual_memory() devuelve un objeto con varios datos
+        # .percent nos da el % usado directamente.
+        return psutil.virtual_memory().percent
+    except Exception:
+        return 0.0

@@ -47,7 +47,9 @@ def on_message(client, userdata, msg):
             .field("voltaje", float(datos["voltaje"])) \
             .field("bomba_activa", bool(datos["bomba"])) \
             .field("led_accion", bool(datos["led_accion"])) \
-            .field("led_alerta", bool(datos["led_alerta"]))
+            .field("led_alerta", bool(datos["led_alerta"])) \
+            .field("cpu_temp", float(datos.get("cpu_temp", 0.0))) \
+            .field("ram_usage", float(datos.get("ram_usage", 0.0))) # <--- AÑADIR ESTO
 
         # 3. Escribir en la base de datos
         write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=point)

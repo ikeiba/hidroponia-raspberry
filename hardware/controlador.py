@@ -75,6 +75,9 @@ estado = {
     "led_rojo_on": False,
     "led_verde_on": False,
     "servo_count": 0,
+    # --- NUEVOS CAMPOS ---
+    "cpu_temp": 0.0,
+    "ram_usage": 0.0
 }
 
 _ultima_activacion_servo = 0.0
@@ -201,6 +204,12 @@ def _hilo_maestro():
         tds = sensores.leer_tds_ppm()
         if tds is None: tds = 600
 
+        # >>> NUEVO: LEER SALUD DEL SISTEMA <<<
+        # Lo hacemos siempre, aunque el sistema esté pausado,
+        # porque queremos monitorizar la Raspberry siempre.
+        cpu_t = sensores.leer_cpu_temp()
+        ram_p = sensores.leer_ram_usage()
+
         voltaje = 0.0
         try: voltaje = sensores.leer_tds_voltage() or 0.0
         except: pass
@@ -209,6 +218,9 @@ def _hilo_maestro():
             estado["temp"] = temp
             estado["tds"] = tds
             estado["bomba_on"] = True
+            # Estado Servidor (Siempre se actualiza)
+            estado["cpu_temp"] = cpu_t
+            estado["ram_usage"] = ram_p
 
         logger.info(f"Estado -> Temp: {temp:.1f}ºC | TDS: {tds} ppm")
 
@@ -277,7 +289,10 @@ def _hilo_maestro():
                 "voltaje": float(voltaje),
                 "bomba": True,
                 "led_accion": led_verde_state,
-                "led_alerta": led_rojo_state
+                "led_alerta": led_rojo_state,
+                # --- NUEVOS DATOS PARA GUARDAR ---
+                "cpu_temp": float(estado["cpu_temp"]),
+                "ram_usage": float(estado["ram_usage"])
             }
             mqtt_publicador.publicar_telemetria(datos_mqtt)
 
