@@ -121,6 +121,8 @@ def toggle_sistema(origen="WEB"):
             logger.info(f"[{origen}] Reseteando EMERGENCIA. Sistema en espera.")
             estado["modo_emergencia"] = False
             estado["sistema_activo"] = False
+            estado["bomba_on"] = False   # <--- CORRECCIÓN: Asegurar estado visual
+            
             actuadores.led_rojo_off()
             actuadores.led_verde_off()
             return
@@ -132,12 +134,14 @@ def toggle_sistema(origen="WEB"):
     if nuevo_estado:
         logger.info(f"[{origen}] Sistema ACTIVADO. Iniciando...")
         actuadores.encender_bomba()
+        with _lock_estado: estado["bomba_on"] = True # <--- CORRECCIÓN: Feedback inmediato
     else:
         logger.info(f"[{origen}] Sistema PAUSADO.")
         actuadores.apagar_bomba()
         actuadores.servo_cerrar()
         actuadores.led_rojo_off()
         actuadores.led_verde_off()
+        with _lock_estado: estado["bomba_on"] = False # <--- CORRECCIÓN CRÍTICA
 
 # =========================
 # CALLBACK BOTÓN FÍSICO
